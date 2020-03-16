@@ -1,6 +1,8 @@
 mod rom;
 mod ram;
+mod registers;
 
+pub use registers::Registers;
 use rom::Rom;
 use ram::Ram;
 
@@ -77,5 +79,30 @@ impl Memory {
             // TODO Interupts may need to be writable here
             _ => panic!("Illegal write operation to address {:04X}", address)
         }
+    }
+
+    // pub fn push_u8(&mut self, registers: &mut Registers, value: u8) {
+
+    // }
+
+    // pub fn pop_u8(&mut self, registers: &mut Registers) -> u8 {
+
+    // }
+
+
+    // TODO is the endianess correct here??
+    pub fn push_u16(&mut self, regs: &mut Registers, value: u16) {
+        let bytes = value.to_be_bytes();
+        self.write(regs.sp, bytes[1]);
+        self.write(regs.sp - 1, bytes[0]);
+        regs.sp = regs.sp.wrapping_sub(2);
+        //println!("push ${:04X}", value);
+    }
+
+    pub fn pop_u16(&mut self, regs: &mut Registers) -> u16 {
+        let res = u16::from_be_bytes([self.read(regs.sp + 1), self.read(regs.sp + 2)]);
+        regs.sp = regs.sp.wrapping_add(2);
+        //println!("pop ${:04X}", res);
+        res
     }
 }

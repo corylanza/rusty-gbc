@@ -32,6 +32,10 @@ impl Registers {
         }
     }
 
+    pub fn get_af(&self) -> u16 {
+        u16::from_be_bytes([self.a, self.f])
+    }
+
     pub fn get_hl(&self) -> u16 {
         u16::from_be_bytes([self.h, self.l])
     }
@@ -42,6 +46,12 @@ impl Registers {
 
     pub fn get_de(&self) -> u16 {
         u16::from_be_bytes([self.d, self.e])
+    }
+
+    pub fn set_af(&mut self, value: u16) {
+        let bytes = value.to_be_bytes();
+        self.a = bytes[0];
+        self.f = bytes[1];
     }
 
     pub fn set_hl(&mut self, value: u16) {

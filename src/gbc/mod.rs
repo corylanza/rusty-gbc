@@ -1,8 +1,7 @@
 mod memory;
-mod registers;
 
 use memory::Memory;
-use registers::Registers;
+use memory::Registers;
 
 pub struct Gameboy {
     memory: Memory,
@@ -223,21 +222,69 @@ impl Gameboy {
             0xF8 => {},
             // LD (nn), SP
             0x08 => {},
-            // PUSH
-            // POP
+            // PUSH AF
+            0xF5 => { let af = self.registers.get_af(); self.memory.push_u16(&mut self.registers, af); },
+            // PUSH BC
+            0xC5 => { let bc = self.registers.get_bc(); self.memory.push_u16(&mut self.registers, bc); },
+            // PUSH DE
+            0xD5 => { let de = self.registers.get_de(); self.memory.push_u16(&mut self.registers, de); },
+            // PUSH HL
+            0xE5 => { let hl = self.registers.get_hl(); self.memory.push_u16(&mut self.registers, hl); },
+            // POP AF
+            0xF1 => { let nn = self.memory.pop_u16(&mut self.registers); self.registers.set_af(nn); },
+            // POP BC
+            0xC1 => { let nn = self.memory.pop_u16(&mut self.registers); self.registers.set_bc(nn); },
+            // POP DE
+            0xD1 => { let nn = self.memory.pop_u16(&mut self.registers); self.registers.set_de(nn); },
+            // POP HL
+            0xE1 => { let nn = self.memory.pop_u16(&mut self.registers); self.registers.set_hl(nn); },
             // ADD
             // ADC
             // SUB
             // SBC
             // AND
             // OR
+            // OR A
+            0xB7 => { self.logical_or(self.registers.a); },
+            // OR B
+            0xB0 => { self.logical_or(self.registers.b); },
+            // OR C
+            0xB1 => { self.logical_or(self.registers.c); },
+            // OR D
+            0xB2 => { self.logical_or(self.registers.d); },
+            // OR E
+            0xB3 => { self.logical_or(self.registers.e); },
+            // OR H
+            0xB4 => { self.logical_or(self.registers.h); },
+            // OR L
+            0xB5 => { self.logical_or(self.registers.l); },
+            // OR (HL)
+            0xB6 => { self.logical_or(self.byte_at_hl()); },
+            // OR n
+            0xF6 => { let n = self.next_byte(); self.logical_or(n); },
             // XOR
             // CP
             // INC
             // DEC
             // ADD (16 bit)
             // INC (16 bit)
+            // INC BC
+            0x03 => { self.registers.set_bc(self.registers.get_bc() + 1); },
+            // INC DE
+            0x13 => { self.registers.set_de(self.registers.get_de() + 1); },
+            // INC HL
+            0x23 => { self.registers.set_hl(self.registers.get_hl() + 1); },
+            // INC SP
+            0x33 => { self.registers.sp += 1; },
             // DEC (16 bit)
+            // DEC BC
+            0x0B => { self.registers.set_bc(self.registers.get_bc() - 1); },
+            // DEC DE
+            0x1B => { self.registers.set_de(self.registers.get_de() - 1); },
+            // DEC HL
+            0x2B => { self.registers.set_hl(self.registers.get_hl() - 1); },
+            // DEC SP
+            0x3B => { self.registers.sp -= 1; },
             // SWAP
             // DAA
             // CPL
@@ -266,14 +313,67 @@ impl Gameboy {
             // RES
             // JP
             // JP nn
-            0xC3 => { let new_add = self.next_u16(); self.registers.pc = new_add; println!("jump to {:02X}", new_add); }
+            0xC3 => { let new_add = self.next_u16(); self.registers.pc = new_add; println!("jump to {:02X}", new_add); },
             // JR
-            // CALL
+            // JR NZ, *
+            0x20 => { self.jump_if_diff(!self.registers.zero_flag()); },
+            // JR Z, *
+            0x28 => { self.jump_if_diff(self.registers.zero_flag()); },
+            // JR NC, *
+            0x30 => { self.jump_if_diff(!self.registers.carry_flag()); },
+            // JR C, *
+            0x38 => { self.jump_if_diff(self.registers.zero_flag()); },
+            // CALL nn
+            0xCD => { 
+                let next_addr = self.next_u16(); 
+                let next_instr = self.registers.pc;
+                self.memory.push_u16(&mut self.registers, next_instr);
+                self.registers.pc = next_addr;
+            },
             // RST
             // RET
+            0xC9 => { 
+                let ret_addr = self.memory.pop_u16(&mut self.registers);
+                self.registers.pc = ret_addr;
+            }
             // RETI
             
             _ => panic!("Unknown Opcode: ${:02X} at address ${:04X}", opcode, self.registers.pc-1)
+        }
+    }
+
+    fn logical_or(&mut self, reg_val: u8) {
+        if self.registers.a | reg_val == 0 {
+            self.registers.a = 0;
+            self.registers.set_zero_flag();
+        } else {
+            self.registers.a = 1;
+        }
+        self.registers.reset_subtract_flag();
+        self.registers.reset_half_carry_flag();
+        self.registers.reset_carry_flag();
+    }
+
+    /// Converts u8 to i8 and adds to pc
+    fn add_signed_to_pc(&self, signed: u8) -> u16 {
+        let n = i8::from_be_bytes([signed]);
+        ((self.registers.pc as i32) + n as i32) as u16
+    }
+    /// If cond is true, jump to the current addres + n 
+    /// where n is the immediately following signed byte
+    fn jump_if_diff(&mut self, cond: bool) {
+        let n = self.next_byte();
+        let next_addr = self.add_signed_to_pc(n);
+        if cond {
+            self.registers.pc = next_addr;
+            println!("jumped to {:02X}", next_addr);
+        }
+    }
+
+    fn jump_if(&mut self, addr: u16, cond: bool) {
+        if cond {
+            self.registers.pc = addr;
+            println!("jumped to {:02X}", addr);
         }
     }
 
