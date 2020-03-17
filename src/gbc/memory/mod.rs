@@ -34,7 +34,7 @@ pub struct Memory {
     oam: Ram,
     io: Ram,
     hram: Ram,
-    interupt_switch: bool
+    interupt_switch: u8
 }
 
 impl Memory {
@@ -48,12 +48,12 @@ impl Memory {
             oam: Ram::new(0xA0),
             io: Ram::new(0x80),
             hram: Ram::new(0x7F),
-            interupt_switch: true
+            interupt_switch: 0
         }
     }
 
     pub fn read(&self, address: u16) -> u8 {
-        match address {
+        let output = match address {
             ROM_START ..= ROM_END => self.cartridge_rom.read(address),
             VRAM_START ..= VRAM_END => self.vram.read(address - VRAM_START),
             ERAM_START ..= ERAM_END => self.eram.read(address - ERAM_START),
@@ -62,12 +62,18 @@ impl Memory {
             OAM_START ..= OAM_END => self.oam.read(address - OAM_START),
             IO_START ..= IO_END => self.io.read(address - IO_START),
             HRAM_START ..= HRAM_END => self.hram.read(address - HRAM_START),
-            INTERUPTS_ENABLE => self.interupt_switch as u8,
+            INTERUPTS_ENABLE => self.interupt_switch,
             _ => panic!("Illegal read operation to address {:04X}", address)
-        }
+        };
+        //println!("read {:02X} from address {:04X}", output, address);
+        output
     }
 
     pub fn write(&mut self, address: u16, value: u8) {
+        // if address == 0xFF02 && value == 0x81 {
+        //     print!("{}", self.read(0xFF01) as char);
+        // }
+        //println!("writing {:02X} to address {:04X}", value, address);
         match address {
             VRAM_START ..= VRAM_END => self.vram.write(address - VRAM_START, value),
             ERAM_START ..= ERAM_END => self.eram.write(address - ERAM_START, value),
@@ -76,6 +82,7 @@ impl Memory {
             OAM_START ..= OAM_END => self.oam.write(address - OAM_START, value),
             IO_START ..= IO_END => self.io.write(address - IO_START, value),
             HRAM_START ..= HRAM_END => self.hram.write(address - HRAM_START, value),
+            INTERUPTS_ENABLE => self.interupt_switch = value,
             // TODO Interupts may need to be writable here
             _ => panic!("Illegal write operation to address {:04X}", address)
         }

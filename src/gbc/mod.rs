@@ -35,7 +35,7 @@ impl Gameboy {
 
     pub fn cpu_step(&mut self) {
         let opcode = self.next_byte();
-        //println!("executing ${:02X} at address ${:04X}", opcode, self.registers.pc-1);
+        println!("executing ${:02X} at address ${:04X}", opcode, self.registers.pc-1);
 
         match opcode {
             // LD B,n
@@ -280,10 +280,64 @@ impl Gameboy {
             0xB6 => { self.logical_or(self.byte_at_hl()); },
             // OR n
             0xF6 => { let n = self.next_byte(); self.logical_or(n); },
-            // XOR
+            // XOR A
+            0xAF => { self.logical_xor(self.registers.a); },
+            // XOR B
+            0xA8 => { self.logical_xor(self.registers.b); },
+            // XOR C
+            0xA9 => { self.logical_xor(self.registers.c); },
+            // XOR D
+            0xAA => { self.logical_xor(self.registers.d); },
+            // XOR E
+            0xAB => { self.logical_xor(self.registers.e); },
+            // XOR H
+            0xAC => { self.logical_xor(self.registers.h); },
+            // XOR L
+            0xAD => { self.logical_xor(self.registers.l); },
+            // XOR (HL)
+            0xAE => { self.logical_xor(self.byte_at_hl()); },
+            // XOR n
+            0xEE => { let n = self.next_byte(); self.logical_xor(n); },
             // CP
+            // CP A
+            0xBF => { self.compare(self.registers.a); },
+            // CP B
+            0xB8 => { self.compare(self.registers.b); },
+            // CP C
+            0xB9 => { self.compare(self.registers.c); },
+            // CP D
+            0xBA => {self.compare(self.registers.d); },
+            // CP E
+            0xBB => { self.compare(self.registers.e); },
+            // CP H
+            0xBC => { self.compare(self.registers.h); },
+            // CP L
+            0xBD => { self.compare(self.registers.l); },
+            // CP (HL)
+            0xBE => { self.compare(self.byte_at_hl()); },
+            // CP n
+            0xFE => { let n = self.next_byte(); self.compare(n); },
             // INC
             // DEC
+            // DEC A
+            0x3D => { self.registers.a = self.decrement(self.registers.a); },
+            // DEC B
+            0x05 => { self.registers.b = self.decrement(self.registers.b); },
+            // DEC C
+            0x0D => { self.registers.c = self.decrement(self.registers.c); },
+            // DEC D
+            0x15 => { self.registers.d = self.decrement(self.registers.d); },
+            // DEC E
+            0x1D => { self.registers.e = self.decrement(self.registers.e); },
+            // DEC H
+            0x25 => { self.registers.h = self.decrement(self.registers.h); },
+            // DEC L
+            0x2D => { self.registers.l = self.decrement(self.registers.l); },
+            // DEC (HL)
+            0x35 => { 
+                let hl_value = self.decrement(self.byte_at_hl()); 
+                self.set_byte_at_hl(hl_value); 
+            },
             // ADD (16 bit)
             // INC (16 bit)
             // INC BC
@@ -362,7 +416,12 @@ impl Gameboy {
             // RET C
             0xD8 => { self.return_if(self.registers.carry_flag()); },
             // RETI
-            
+            0xCB => {
+                let cb_opcode = self.next_byte();
+                match cb_opcode {
+                    _ => panic!("Unknown Opcode after CB modifier: ${:02X} at address ${:04X}", cb_opcode, self.registers.pc-1)
+                }
+            }
             _ => panic!("Unknown Opcode: ${:02X} at address ${:04X}", opcode, self.registers.pc-1)
         }
     }
@@ -370,6 +429,20 @@ impl Gameboy {
     /// which to logically or with register a
     fn logical_or(&mut self, reg_val: u8) {
         if self.registers.a | reg_val == 0 {
+            self.registers.a = 0;
+            self.registers.set_zero_flag();
+        } else {
+            self.registers.a = 1;
+        }
+        self.registers.reset_subtract_flag();
+        self.registers.reset_half_carry_flag();
+        self.registers.reset_carry_flag();
+    }
+
+    /// param: `reg_val` - The value from a register from 
+    /// which to logically xor with register a
+    fn logical_xor(&mut self, reg_val: u8) {
+        if self.registers.a ^ reg_val == 0 {
             self.registers.a = 0;
             self.registers.set_zero_flag();
         } else {
@@ -405,6 +478,33 @@ impl Gameboy {
         }
     }
 
+    /// Compare register A with n, A - n subtraction
+    /// results are thrown away and flags are set
+    fn compare(&mut self, n: u8) {
+        let a = self.registers.a;
+        if a == n {
+            self.registers.set_zero_flag();
+        } if a > n {
+            self.registers.set_carry_flag();
+        }
+        if half_carry_subtraction(a, n) {
+            self.registers.set_half_carry_flag();
+        }
+        self.registers.set_subtract_flag();
+    }
+
+    fn decrement(&mut self, value: u8) -> u8 {
+        if half_carry_subtraction(value, 1) {
+            self.registers.set_half_carry_flag();
+        }
+        self.registers.set_subtract_flag();
+        let new_val = value.wrapping_sub(1);
+        if new_val == 0 {
+            self.registers.set_zero_flag();
+        }
+        new_val
+    }
+
     // fn jump_if(&mut self, addr: u16, cond: bool) {
     //     if cond {
     //         self.registers.pc = addr;
@@ -432,4 +532,20 @@ impl Gameboy {
 /// Converts u8 to i8 and adds to u16
 fn add_signed_u8_to_u16(unsigned: u16, signed: u8) -> u16 {
     ((unsigned as i32) + i8::from_be_bytes([signed]) as i32) as u16
+}
+
+fn half_carry_addition(first: u8, second: u8) -> bool {
+    (((first & 0x0F) + (second & 0x0F)) & 0x10) == 0x10
+}
+
+fn half_carry_addition_u16(first: u16, second: u16) -> bool {
+    (((first & 0x00FF) + (second & 0x00FF)) & 0x0100) == 0x0100
+}
+
+fn half_carry_subtraction(first: u8, second: u8) -> bool {
+    ((first & 0x0F) as i16 - (second & 0x0F) as i16) < 0
+}
+
+fn half_carry_subtraction_16(first: u8, second: u8) -> bool {
+    ((first & 0x00FF) as i32 - (second & 0x00FF) as i32) < 0
 }

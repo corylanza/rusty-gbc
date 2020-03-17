@@ -1,7 +1,7 @@
-const zero_flag_mask: u8 = 0b10000000;
-const subtract_flag_mask: u8 = 0b01000000;
-const half_carry_flag_mask: u8 = 0b00100000;
-const carry_flag_mask: u8 = 0b00010000;
+const ZERO_FLAG_MASK: u8 = 0b10000000;
+const SUBTRACT_FLAG_MASK: u8 = 0b01000000;
+const HALF_CARRY_FLAG_MASK: u8 = 0b00100000;
+const CARRY_FLAG_MASK: u8 = 0b00010000;
 
 pub struct Registers {
     pub a: u8,
@@ -16,17 +16,19 @@ pub struct Registers {
 	pub pc: u16,
 }
 
+#[allow(dead_code)]
 impl Registers {
     pub fn new() -> Registers {
+        // TODO initialize this with proper boot rom sequence
         Registers {
-            a: 0,
-            f: 0,
+            a: 0x01,
+            f: 0xB0,
             b: 0,
-            c: 0,
+            c: 0x13,
             d: 0,
-            e: 0,
-            h: 0,
-            l: 0,
+            e: 0xD8,
+            h: 0x01,
+            l: 0x4D,
             sp: 0xFFFE,
             pc: 0x100
         }
@@ -73,50 +75,50 @@ impl Registers {
     }
 
     pub fn zero_flag(&self) -> bool {
-        self.f & zero_flag_mask > 0
+        self.f & ZERO_FLAG_MASK > 0
     }
 
     pub fn set_zero_flag(&mut self) {
-        self.f |= zero_flag_mask;
+        self.f |= ZERO_FLAG_MASK;
     }
 
     pub fn reset_zero_flag(&mut self) {
-        self.f &= !zero_flag_mask;
+        self.f &= !ZERO_FLAG_MASK;
     }
 
     pub fn subtract_flag(&self) -> bool {
-        self.f & subtract_flag_mask > 0
+        self.f & SUBTRACT_FLAG_MASK > 0
     }
 
     pub fn set_subtract_flag(&mut self) {
-        self.f |= subtract_flag_mask;
+        self.f |= SUBTRACT_FLAG_MASK;
     }
 
     pub fn reset_subtract_flag(&mut self) {
-        self.f &= !subtract_flag_mask;
+        self.f &= !SUBTRACT_FLAG_MASK;
     }
 
     pub fn half_carry_flag(&self) -> bool {
-        self.f & half_carry_flag_mask > 0
+        self.f & HALF_CARRY_FLAG_MASK > 0
     }
 
     pub fn set_half_carry_flag(&mut self) {
-        self.f = half_carry_flag_mask;
+        self.f = HALF_CARRY_FLAG_MASK;
     }
 
     pub fn reset_half_carry_flag(&mut self) {
-        self.f &= !half_carry_flag_mask;
+        self.f &= !HALF_CARRY_FLAG_MASK;
     }
 
     pub fn carry_flag(&self) -> bool {
-        self.f & carry_flag_mask > 0
+        self.f & CARRY_FLAG_MASK > 0
     }
 
     pub fn set_carry_flag(&mut self) {
-        self.f |= carry_flag_mask;
+        self.f |= CARRY_FLAG_MASK;
     }
 
     pub fn reset_carry_flag(&mut self) {
-        self.f &= ! carry_flag_mask;
+        self.f &= ! CARRY_FLAG_MASK;
     }
 }
