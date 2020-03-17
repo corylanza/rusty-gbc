@@ -35,7 +35,7 @@ impl Gameboy {
 
     pub fn cpu_step(&mut self) {
         let opcode = self.next_byte();
-        println!("executing ${:02X} at address ${:04X}", opcode, self.registers.pc-1);
+        //println!("executing ${:02X} at address ${:04X}", opcode, self.registers.pc-1);
 
         match opcode {
             // LD B,n
@@ -243,6 +243,24 @@ impl Gameboy {
             // SUB
             // SBC
             // AND
+            // AND A
+            0xA7 => { self.logical_and(self.registers.a); }
+            // AND B
+            0xA0 => { self.logical_and(self.registers.b); }
+            // AND C
+            0xA1 => { self.logical_and(self.registers.c); }
+            // AND D
+            0xA2 => { self.logical_and(self.registers.d); }
+            // AND E
+            0xA3 => { self.logical_and(self.registers.e); }
+            // AND H
+            0xA4 => { self.logical_and(self.registers.h); }
+            // AND L
+            0xA5 => { self.logical_and(self.registers.l); }
+            // AND (HL)
+            0xA6 => { self.logical_and(self.byte_at_hl()); }
+            // AND n
+            0xE6 => { let n = self.next_byte(); self.logical_and(n); }
             // OR
             // OR A
             0xB7 => { self.logical_or(self.registers.a); },
@@ -332,16 +350,24 @@ impl Gameboy {
             },
             // RST
             // RET
-            0xC9 => { 
-                let ret_addr = self.memory.pop_u16(&mut self.registers);
-                self.registers.pc = ret_addr;
+            0xC9 => {
+                self.registers.pc = self.memory.pop_u16(&mut self.registers);
             }
+            // RET NZ
+            0xC0 => { self.return_if(!self.registers.zero_flag()); },
+            // RET Z
+            0xC8 => { self.return_if(self.registers.zero_flag()); },
+            // RET NC
+            0xD0 => { self.return_if(!self.registers.carry_flag()); },
+            // RET C
+            0xD8 => { self.return_if(self.registers.carry_flag()); },
             // RETI
             
             _ => panic!("Unknown Opcode: ${:02X} at address ${:04X}", opcode, self.registers.pc-1)
         }
     }
-
+    /// param: `reg_val` - The value from a register from 
+    /// which to logically or with register a
     fn logical_or(&mut self, reg_val: u8) {
         if self.registers.a | reg_val == 0 {
             self.registers.a = 0;
@@ -354,34 +380,56 @@ impl Gameboy {
         self.registers.reset_carry_flag();
     }
 
-    /// Converts u8 to i8 and adds to pc
-    fn add_signed_to_pc(&self, signed: u8) -> u16 {
-        let n = i8::from_be_bytes([signed]);
-        ((self.registers.pc as i32) + n as i32) as u16
+    /// param: `reg_val` - The value from a register from 
+    /// which to logically and with register a
+    fn logical_and(&mut self, reg_val: u8) {
+        if self.registers.a & reg_val == 0 {
+            self.registers.a = 0;
+            self.registers.set_zero_flag();
+        } else {
+            self.registers.a = 1;
+        }
+        self.registers.set_half_carry_flag();
+        self.registers.reset_subtract_flag();
+        self.registers.reset_carry_flag();
     }
+
     /// If cond is true, jump to the current addres + n 
     /// where n is the immediately following signed byte
     fn jump_if_diff(&mut self, cond: bool) {
         let n = self.next_byte();
-        let next_addr = self.add_signed_to_pc(n);
+        let next_addr = add_signed_u8_to_u16(self.registers.pc, n);
         if cond {
             self.registers.pc = next_addr;
-            println!("jumped to {:02X}", next_addr);
+            //println!("jumped to {:02X}", next_addr);
         }
     }
 
-    fn jump_if(&mut self, addr: u16, cond: bool) {
+    // fn jump_if(&mut self, addr: u16, cond: bool) {
+    //     if cond {
+    //         self.registers.pc = addr;
+    //         //println!("jumped to {:02X}", addr);
+    //     }
+    // }
+
+    fn return_if(&mut self, cond: bool) {
         if cond {
-            self.registers.pc = addr;
-            println!("jumped to {:02X}", addr);
+            self.registers.pc = self.memory.pop_u16(&mut self.registers);
         }
     }
 
+    /// Gets the value of the byte in memory at address stored in HL register
     fn byte_at_hl(&self) -> u8 {
         self.memory.read(self.registers.get_hl())
     }
-
+    
+    // Sets the value of the byte in memory at address stored in HL register
     fn set_byte_at_hl(&mut self, value: u8) {
         self.memory.write(self.registers.get_hl(), value);
     }
+}
+
+/// Converts u8 to i8 and adds to u16
+fn add_signed_u8_to_u16(unsigned: u16, signed: u8) -> u16 {
+    ((unsigned as i32) + i8::from_be_bytes([signed]) as i32) as u16
 }
