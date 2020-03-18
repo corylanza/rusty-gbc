@@ -414,6 +414,9 @@ impl Gameboy {
             // RLA
             // RRCA
             // RRA
+            // 0x1F => {
+            //     self.registers.a = (self.registers.a >> 1);
+            // },
             // RLC
             // RL
             // RRC
@@ -498,13 +501,13 @@ impl Gameboy {
     fn logical_or(&mut self, reg_val: u8) {
         if self.registers.a | reg_val == 0 {
             self.registers.a = 0;
-            self.registers.set_zero_flag();
+            self.registers.set_zero_flag(true);
         } else {
             self.registers.a = 1;
         }
-        self.registers.reset_subtract_flag();
-        self.registers.reset_half_carry_flag();
-        self.registers.reset_carry_flag();
+        self.registers.set_subtract_flag(false);
+        self.registers.set_half_carry_flag(false);
+        self.registers.set_carry_flag(false);
     }
 
     /// param: `reg_val` - The value from a register from 
@@ -512,13 +515,13 @@ impl Gameboy {
     fn logical_xor(&mut self, reg_val: u8) {
         if self.registers.a ^ reg_val == 0 {
             self.registers.a = 0;
-            self.registers.set_zero_flag();
+            self.registers.set_zero_flag(true);
         } else {
             self.registers.a = 1;
         }
-        self.registers.reset_subtract_flag();
-        self.registers.reset_half_carry_flag();
-        self.registers.reset_carry_flag();
+        self.registers.set_subtract_flag(false);
+        self.registers.set_half_carry_flag(false);
+        self.registers.set_carry_flag(false);
     }
 
     /// param: `reg_val` - The value from a register from 
@@ -526,13 +529,13 @@ impl Gameboy {
     fn logical_and(&mut self, reg_val: u8) {
         if self.registers.a & reg_val == 0 {
             self.registers.a = 0;
-            self.registers.set_zero_flag();
+            self.registers.set_zero_flag(true);
         } else {
             self.registers.a = 1;
         }
-        self.registers.set_half_carry_flag();
-        self.registers.reset_subtract_flag();
-        self.registers.reset_carry_flag();
+        self.registers.set_half_carry_flag(true);
+        self.registers.set_subtract_flag(false);
+        self.registers.set_carry_flag(false);
     }
 
     /// If cond is true, jump to the current addres + n 
@@ -550,44 +553,27 @@ impl Gameboy {
     /// results are thrown away and flags are set
     fn compare(&mut self, n: u8) {
         let a = self.registers.a;
-        if a == n {
-            self.registers.set_zero_flag();
-        } if a > n {
-            self.registers.set_carry_flag();
-        }
-        if half_carry_subtraction(a, n) {
-            self.registers.set_half_carry_flag();
-        }
-        self.registers.set_subtract_flag();
+        self.registers.set_zero_flag(a == n);
+        self.registers.set_carry_flag(a > n);
+        self.registers.set_half_carry_flag(half_carry_subtraction(a, n));
+        self.registers.set_subtract_flag(true);
     }
 
     fn add(&mut self, first: u8, second: u8) -> u8 {
-        if half_carry_addition(first, second) {
-            self.registers.set_half_carry_flag();
-        }
-        if (first as u16) + (second as u16) > 0xFF {
-            self.registers.set_carry_flag();
-        }
-        self.registers.reset_subtract_flag();
+        self.registers.set_half_carry_flag(half_carry_addition(first, second));
+        self.registers.set_carry_flag((first as u16) + (second as u16) > 0xFF);
+        self.registers.set_subtract_flag(false);
         let new_val = first.wrapping_add(second);
-        if new_val == 0 {
-            self.registers.set_subtract_flag();
-        }
+        self.registers.set_zero_flag(new_val == 0);
         new_val
     }
 
     fn subtract(&mut self, first: u8, second: u8) -> u8 {
-        if half_carry_subtraction(first, second) {
-            self.registers.set_half_carry_flag();
-        }
-        if (first as i16) - (second as i16) > 0x00 {
-            self.registers.set_carry_flag();
-        }
-        self.registers.set_subtract_flag();
+        self.registers.set_half_carry_flag(half_carry_subtraction(first, second));
+        self.registers.set_carry_flag((first as i16) - (second as i16) > 0x00);
+        self.registers.set_subtract_flag(true);
         let new_val = first.wrapping_sub(second);
-        if new_val == 0 {
-            self.registers.set_zero_flag();
-        }
+        self.registers.set_zero_flag(new_val == 0);
         new_val
     }
 

@@ -78,48 +78,32 @@ impl Registers {
         self.f & ZERO_FLAG_MASK > 0
     }
 
-    pub fn set_zero_flag(&mut self) {
-        self.f |= ZERO_FLAG_MASK;
-    }
-
-    pub fn reset_zero_flag(&mut self) {
-        self.f &= !ZERO_FLAG_MASK;
+    pub fn set_zero_flag(&mut self, to: bool) {
+        self.f = if to { self.f | ZERO_FLAG_MASK } else { self.f & !ZERO_FLAG_MASK };
     }
 
     pub fn subtract_flag(&self) -> bool {
         self.f & SUBTRACT_FLAG_MASK > 0
     }
 
-    pub fn set_subtract_flag(&mut self) {
-        self.f |= SUBTRACT_FLAG_MASK;
-    }
-
-    pub fn reset_subtract_flag(&mut self) {
-        self.f &= !SUBTRACT_FLAG_MASK;
+    pub fn set_subtract_flag(&mut self, to: bool) {
+        self.f = if to { self.f | SUBTRACT_FLAG_MASK } else { self.f & !SUBTRACT_FLAG_MASK };
     }
 
     pub fn half_carry_flag(&self) -> bool {
         self.f & HALF_CARRY_FLAG_MASK > 0
     }
 
-    pub fn set_half_carry_flag(&mut self) {
-        self.f = HALF_CARRY_FLAG_MASK;
-    }
-
-    pub fn reset_half_carry_flag(&mut self) {
-        self.f &= !HALF_CARRY_FLAG_MASK;
+    pub fn set_half_carry_flag(&mut self, to: bool) {
+        self.f = if to { self.f | HALF_CARRY_FLAG_MASK } else { self.f & !HALF_CARRY_FLAG_MASK };
     }
 
     pub fn carry_flag(&self) -> bool {
         self.f & CARRY_FLAG_MASK > 0
     }
 
-    pub fn set_carry_flag(&mut self) {
-        self.f |= CARRY_FLAG_MASK;
-    }
-
-    pub fn reset_carry_flag(&mut self) {
-        self.f &= ! CARRY_FLAG_MASK;
+    pub fn set_carry_flag(&mut self, to: bool) {
+        self.f = if to { self.f | CARRY_FLAG_MASK } else { self.f & !CARRY_FLAG_MASK };
     }
 }
 
@@ -132,24 +116,24 @@ mod tests {
     fn test_zero_flag () {
         let mut regs = Registers::new();
         // zero
-        regs.set_zero_flag();
+        regs.set_zero_flag(true);
         assert_eq!(regs.zero_flag(), true);
-        regs.reset_zero_flag();
+        regs.set_zero_flag(false);
         assert_eq!(regs.zero_flag(), false);
         // half carry
-        regs.set_half_carry_flag();
+        regs.set_half_carry_flag(true);
         assert_eq!(regs.half_carry_flag(), true);
-        regs.reset_half_carry_flag();
+        regs.set_half_carry_flag(false);
         assert_eq!(regs.half_carry_flag(), false);
         // carry
-        regs.set_carry_flag();
+        regs.set_carry_flag(true);
         assert_eq!(regs.carry_flag(), true);
-        regs.reset_carry_flag();
+        regs.set_carry_flag(false);
         assert_eq!(regs.carry_flag(), false);
         // subtract
-        regs.set_subtract_flag();
+        regs.set_subtract_flag(true);
         assert_eq!(regs.subtract_flag(), true);
-        regs.reset_subtract_flag();
+        regs.set_subtract_flag(false);
         assert_eq!(regs.subtract_flag(), false);
     }
 }
