@@ -75,6 +75,7 @@ impl Memory {
         }
         //println!("writing {:02X} to address {:04X}", value, address);
         match address {
+            ROM_START ..= ROM_END => println!("writing {:02X} to ROM address {:04X}", value, address),
             VRAM_START ..= VRAM_END => self.vram.write(address - VRAM_START, value),
             ERAM_START ..= ERAM_END => self.eram.write(address - ERAM_START, value),
             WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),
@@ -111,5 +112,9 @@ impl Memory {
         regs.sp = regs.sp.wrapping_add(2);
         //println!("pop ${:04X}", res);
         res
+    }
+
+    pub fn print_cart_metadata(&self) {
+        self.cartridge_rom.print_metadata();
     }
 }

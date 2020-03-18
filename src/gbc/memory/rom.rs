@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io::prelude::*;
+use std::str;
 
 pub struct Rom {
     bytes: Vec<u8>
@@ -14,6 +15,10 @@ impl Rom {
         Rom {
             bytes: buffer
         }
+    }
+
+    pub fn print_metadata(&self) {
+        println!("{}", str::from_utf8(&self.bytes[0x0134..0x0143]).unwrap())
     }
 
     pub fn read(&self, address: u16) -> u8 {

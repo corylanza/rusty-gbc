@@ -17,6 +17,7 @@ impl Gameboy {
     }
 
     pub fn run(&mut self) {
+        self.memory.print_cart_metadata();
         loop {
             self.cpu_step();
         }
@@ -318,24 +319,43 @@ impl Gameboy {
             // CP n
             0xFE => { let n = self.next_byte(); self.compare(n); },
             // INC
+            // INC A
+            0x3C => { self.registers.a = self.add(self.registers.a, 1); },
+            // INC B
+            0x04 => { self.registers.b = self.add(self.registers.b, 1); },
+            // INC C
+            0x0C => { self.registers.c = self.add(self.registers.c, 1); },
+            // INC D
+            0x14 => { self.registers.d = self.add(self.registers.d, 1); },
+            // INC E
+            0x1C => { self.registers.e = self.add(self.registers.e, 1); },
+            // INC H
+            0x24 => { self.registers.h = self.add(self.registers.h, 1); },
+            // INC L
+            0x2C => { self.registers.l = self.add(self.registers.l, 1); },
+            // INC (HL)
+            0x34 => { 
+                let new_hl = self.add(self.byte_at_hl(), 1); 
+                self.set_byte_at_hl(new_hl);
+            },
             // DEC
             // DEC A
-            0x3D => { self.registers.a = self.decrement(self.registers.a); },
+            0x3D => { self.registers.a = self.subtract(self.registers.a, 1); },
             // DEC B
-            0x05 => { self.registers.b = self.decrement(self.registers.b); },
+            0x05 => { self.registers.b = self.subtract(self.registers.b, 1); },
             // DEC C
-            0x0D => { self.registers.c = self.decrement(self.registers.c); },
+            0x0D => { self.registers.c = self.subtract(self.registers.c, 1); },
             // DEC D
-            0x15 => { self.registers.d = self.decrement(self.registers.d); },
+            0x15 => { self.registers.d = self.subtract(self.registers.d, 1); },
             // DEC E
-            0x1D => { self.registers.e = self.decrement(self.registers.e); },
+            0x1D => { self.registers.e = self.subtract(self.registers.e, 1); },
             // DEC H
-            0x25 => { self.registers.h = self.decrement(self.registers.h); },
+            0x25 => { self.registers.h = self.subtract(self.registers.h, 1); },
             // DEC L
-            0x2D => { self.registers.l = self.decrement(self.registers.l); },
+            0x2D => { self.registers.l = self.subtract(self.registers.l, 1); },
             // DEC (HL)
             0x35 => { 
-                let hl_value = self.decrement(self.byte_at_hl()); 
+                let hl_value = self.subtract(self.byte_at_hl(), 1); 
                 self.set_byte_at_hl(hl_value); 
             },
             // ADD (16 bit)
@@ -386,8 +406,10 @@ impl Gameboy {
             // JP
             // JP nn
             0xC3 => { let new_add = self.next_u16(); self.registers.pc = new_add; println!("jump to {:02X}", new_add); },
+            // JP (HL)
+            0xE9 => { self.registers.pc = self.registers.get_hl(); },
             // JR n
-            0x18 => { self.jump_by_n_if(true); }
+            0x18 => { self.jump_by_n_if(true); },
             // JR NZ, *
             0x20 => { self.jump_by_n_if(!self.registers.zero_flag()); },
             // JR Z, *
@@ -518,12 +540,24 @@ impl Gameboy {
         self.registers.set_subtract_flag();
     }
 
-    fn decrement(&mut self, value: u8) -> u8 {
-        if half_carry_subtraction(value, 1) {
+    fn add(&mut self, first: u8, second: u8) -> u8 {
+        if half_carry_addition(first, second) {
+            self.registers.set_half_carry_flag();
+        }
+        self.registers.reset_subtract_flag();
+        let new_val = first.wrapping_add(second);
+        if new_val == 0 {
+            self.registers.set_subtract_flag();
+        }
+        new_val
+    }
+
+    fn subtract(&mut self, first: u8, second: u8) -> u8 {
+        if half_carry_subtraction(first, second) {
             self.registers.set_half_carry_flag();
         }
         self.registers.set_subtract_flag();
-        let new_val = value.wrapping_sub(1);
+        let new_val = first.wrapping_sub(second);
         if new_val == 0 {
             self.registers.set_zero_flag();
         }
