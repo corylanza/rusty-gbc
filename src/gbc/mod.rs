@@ -242,6 +242,11 @@ impl Gameboy {
             // ADD
             // ADC
             // SUB
+            // SUB n
+            0xD6 => { 
+                let n = self.next_byte(); 
+                self.registers.a = self.subtract(self.registers.a, n);
+            }
             // SBC
             // AND
             // AND A
@@ -355,8 +360,8 @@ impl Gameboy {
             0x2D => { self.registers.l = self.subtract(self.registers.l, 1); },
             // DEC (HL)
             0x35 => { 
-                let hl_value = self.subtract(self.byte_at_hl(), 1); 
-                self.set_byte_at_hl(hl_value); 
+                let new_hl = self.subtract(self.byte_at_hl(), 1); 
+                self.set_byte_at_hl(new_hl); 
             },
             // ADD (16 bit)
             // INC (16 bit)
@@ -544,6 +549,9 @@ impl Gameboy {
         if half_carry_addition(first, second) {
             self.registers.set_half_carry_flag();
         }
+        if (first as u16) + (second as u16) > 0xFF {
+            self.registers.set_carry_flag();
+        }
         self.registers.reset_subtract_flag();
         let new_val = first.wrapping_add(second);
         if new_val == 0 {
@@ -555,6 +563,9 @@ impl Gameboy {
     fn subtract(&mut self, first: u8, second: u8) -> u8 {
         if half_carry_subtraction(first, second) {
             self.registers.set_half_carry_flag();
+        }
+        if (first as i16) - (second as i16) > 0x00 {
+            self.registers.set_carry_flag();
         }
         self.registers.set_subtract_flag();
         let new_val = first.wrapping_sub(second);
@@ -597,12 +608,12 @@ fn half_carry_addition(first: u8, second: u8) -> bool {
     (((first & 0x0F) + (second & 0x0F)) & 0x10) == 0x10
 }
 
-fn half_carry_addition_u16(first: u16, second: u16) -> bool {
-    (((first & 0x00FF) + (second & 0x00FF)) & 0x0100) == 0x0100
-}
-
 fn half_carry_subtraction(first: u8, second: u8) -> bool {
     ((first & 0x0F) as i16 - (second & 0x0F) as i16) < 0
+}
+
+fn half_carry_addition_u16(first: u16, second: u16) -> bool {
+    (((first & 0x00FF) + (second & 0x00FF)) & 0x0100) == 0x0100
 }
 
 fn half_carry_subtraction_16(first: u8, second: u8) -> bool {

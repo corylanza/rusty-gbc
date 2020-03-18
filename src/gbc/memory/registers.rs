@@ -122,3 +122,34 @@ impl Registers {
         self.f &= ! CARRY_FLAG_MASK;
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_zero_flag () {
+        let mut regs = Registers::new();
+        // zero
+        regs.set_zero_flag();
+        assert_eq!(regs.zero_flag(), true);
+        regs.reset_zero_flag();
+        assert_eq!(regs.zero_flag(), false);
+        // half carry
+        regs.set_half_carry_flag();
+        assert_eq!(regs.half_carry_flag(), true);
+        regs.reset_half_carry_flag();
+        assert_eq!(regs.half_carry_flag(), false);
+        // carry
+        regs.set_carry_flag();
+        assert_eq!(regs.carry_flag(), true);
+        regs.reset_carry_flag();
+        assert_eq!(regs.carry_flag(), false);
+        // subtract
+        regs.set_subtract_flag();
+        assert_eq!(regs.subtract_flag(), true);
+        regs.reset_subtract_flag();
+        assert_eq!(regs.subtract_flag(), false);
+    }
+}
