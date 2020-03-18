@@ -242,11 +242,27 @@ impl Gameboy {
             // ADD
             // ADC
             // SUB
+            // SUB A
+            0x97 => { self.registers.a = self.subtract(self.registers.a, self.registers.a); },
+            // SUB B
+            0x90 => { self.registers.b = self.subtract(self.registers.a, self.registers.b); },
+            // SUB C
+            0x91 => { self.registers.c = self.subtract(self.registers.a, self.registers.c); },
+            // SUB D
+            0x92 => { self.registers.d = self.subtract(self.registers.a, self.registers.d); },
+            // SUB E
+            0x93 => { self.registers.e = self.subtract(self.registers.a, self.registers.e); },
+            // SUB H
+            0x94 => { self.registers.h = self.subtract(self.registers.a, self.registers.h); },
+            // SUB L
+            0x95 => { self.registers.l = self.subtract(self.registers.a, self.registers.l); },
+            // SUB (HL)
+            0x96 => { self.registers.a = self.subtract(self.registers.a, self.byte_at_hl()); },
             // SUB n
             0xD6 => { 
                 let n = self.next_byte(); 
                 self.registers.a = self.subtract(self.registers.a, n);
-            }
+            },
             // SBC
             // AND
             // AND A
