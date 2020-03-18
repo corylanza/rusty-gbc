@@ -70,9 +70,9 @@ impl Memory {
     }
 
     pub fn write(&mut self, address: u16, value: u8) {
-        // if address == 0xFF02 && value == 0x81 {
-        //     print!("{}", self.read(0xFF01) as char);
-        // }
+        if address == 0xFF02 && value == 0x81 {
+            print!("{}", self.read(0xFF01) as char);
+        }
         //println!("writing {:02X} to address {:04X}", value, address);
         match address {
             VRAM_START ..= VRAM_END => self.vram.write(address - VRAM_START, value),

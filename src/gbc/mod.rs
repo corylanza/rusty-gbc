@@ -386,21 +386,46 @@ impl Gameboy {
             // JP
             // JP nn
             0xC3 => { let new_add = self.next_u16(); self.registers.pc = new_add; println!("jump to {:02X}", new_add); },
-            // JR
+            // JR n
+            0x18 => { self.jump_by_n_if(true); }
             // JR NZ, *
-            0x20 => { self.jump_if_diff(!self.registers.zero_flag()); },
+            0x20 => { self.jump_by_n_if(!self.registers.zero_flag()); },
             // JR Z, *
-            0x28 => { self.jump_if_diff(self.registers.zero_flag()); },
+            0x28 => { self.jump_by_n_if(self.registers.zero_flag()); },
             // JR NC, *
-            0x30 => { self.jump_if_diff(!self.registers.carry_flag()); },
+            0x30 => { self.jump_by_n_if(!self.registers.carry_flag()); },
             // JR C, *
-            0x38 => { self.jump_if_diff(self.registers.zero_flag()); },
+            0x38 => { self.jump_by_n_if(self.registers.zero_flag()); },
             // CALL nn
             0xCD => { 
                 let next_addr = self.next_u16(); 
                 let next_instr = self.registers.pc;
                 self.memory.push_u16(&mut self.registers, next_instr);
                 self.registers.pc = next_addr;
+            },
+            // CALL NZ,nn
+            0xC4 => { 
+                if !self.registers.zero_flag() {
+                    self.registers.pc = self.next_u16();
+                }
+            },
+            // CALL Z,nn
+            0xCC => { 
+                if self.registers.zero_flag() {
+                    self.registers.pc = self.next_u16();
+                }
+            },
+            // CALL NC,nn
+            0xD4 => { 
+                if !self.registers.carry_flag() {
+                    self.registers.pc = self.next_u16();
+                }
+            },
+            // CALL C,nn
+            0xDC => { 
+                if self.registers.carry_flag() {
+                    self.registers.pc = self.next_u16();
+                }
             },
             // RST
             // RET
@@ -469,7 +494,7 @@ impl Gameboy {
 
     /// If cond is true, jump to the current addres + n 
     /// where n is the immediately following signed byte
-    fn jump_if_diff(&mut self, cond: bool) {
+    fn jump_by_n_if(&mut self, cond: bool) {
         let n = self.next_byte();
         let next_addr = add_signed_u8_to_u16(self.registers.pc, n);
         if cond {
