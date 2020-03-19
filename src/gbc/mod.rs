@@ -436,6 +436,11 @@ impl Gameboy {
             // CPL
             // CCF
             // SCF
+            0x37 => { 
+                self.registers.set_subtract_flag(false);
+                self.registers.set_half_carry_flag(false);
+                self.registers.set_carry_flag(true);
+            },
             // NOP
             0x00 => {},
             // HALT
@@ -548,6 +553,27 @@ impl Gameboy {
             0xCB => {
                 let cb_opcode = self.next_byte();
                 match cb_opcode {
+                    // RLCA
+                    // RLA
+                    // RRCA
+                    // RRA
+                    // RLC
+                    // RL
+                    // RRC
+                    // RR
+                    // RR D
+                    0x1A => { self.registers.d <<= 1; },
+                    // SLA
+                    // SRA
+                    // SRL
+                    // BIT
+                    // BIT b,D
+                    0x42 => { 
+                        let t = self.registers.d & (1 << 0);
+                        self.registers.set_zero_flag(t & 0xFF == 0);
+                        self.registers.set_subtract_flag(false);
+                        self.registers.set_half_carry_flag(true);
+                    },
                     _ => panic!("Unknown Opcode after CB modifier: ${:02X} at address ${:04X}", cb_opcode, self.registers.pc-1)
                 }
             }

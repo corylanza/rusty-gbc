@@ -122,3 +122,21 @@ impl Memory {
         self.cartridge_rom.print_metadata();
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::gbc::memory::Registers;
+    use crate::gbc::memory::Memory;
+
+    #[test]
+    fn test_stack_alloc() {
+        let mut regs = Registers::new();
+        let mut mem = Memory::new("./roms/tetris.gbc");
+        mem.push_u16(&mut regs, 0x1234);
+        assert_eq!(mem.pop_u16(&mut regs), 0x1234);
+        mem.push_u16(&mut regs, 0xabcd);
+        mem.push_u16(&mut regs, 0x9f9f);
+        assert_eq!(mem.pop_u16(&mut regs), 0x9f9f);
+        assert_eq!(mem.pop_u16(&mut regs), 0xabcd);
+    }
+}
