@@ -239,9 +239,42 @@ impl Gameboy {
             0xD1 => { let nn = self.memory.pop_u16(&mut self.registers); self.registers.set_de(nn); },
             // POP HL
             0xE1 => { let nn = self.memory.pop_u16(&mut self.registers); self.registers.set_hl(nn); },
-            // ADD
-            // ADC
-            // SUB
+            // ADD A,A
+            0x87 => { self.registers.a = self.add(self.registers.a, self.registers.a); },
+            // ADD A,B
+            0x80 => { self.registers.a = self.add(self.registers.a, self.registers.b); },
+            // ADD A,C
+            0x81 => { self.registers.a = self.add(self.registers.a, self.registers.c); },
+            // ADD A,D
+            0x82 => { self.registers.a = self.add(self.registers.a, self.registers.d); },
+            // ADD A,E
+            0x83 => { self.registers.a = self.add(self.registers.a, self.registers.e); },
+            // ADD A,H
+            0x84 => { self.registers.a = self.add(self.registers.a, self.registers.h); },
+            // ADd A,L
+            0x85 => { self.registers.a = self.add(self.registers.a, self.registers.l); },
+            // ADd A, (HL)
+            0x86 => { self.registers.a = self.add(self.registers.a, self.byte_at_hl()); },
+            // ADD A,n
+            0xC6 => { let n = self.next_byte(); self.registers.a = self.add(self.registers.a, n); },
+            // ADC A,A
+            0x8F => { self.registers.a = self.add(self.registers.a, self.registers.a + if self.registers.carry_flag() {1} else {0}); },
+            // ADC A,B
+            0x88 => { self.registers.a = self.add(self.registers.a, self.registers.b + if self.registers.carry_flag() {1} else {0}); },
+            // ADC A,C
+            0x89 => { self.registers.a = self.add(self.registers.a, self.registers.c + if self.registers.carry_flag() {1} else {0}); },
+            // ADC A,D
+            0x8A => { self.registers.a = self.add(self.registers.a, self.registers.d + if self.registers.carry_flag() {1} else {0}); },
+            // ADC A,E
+            0x8B => { self.registers.a = self.add(self.registers.a, self.registers.e + if self.registers.carry_flag() {1} else {0}); },
+            // ADC A,H
+            0x8C => { self.registers.a = self.add(self.registers.a, self.registers.h + if self.registers.carry_flag() {1} else {0}); },
+            // ADC A,L
+            0x8D => { self.registers.a = self.add(self.registers.a, self.registers.l + if self.registers.carry_flag() {1} else {0}); },
+            // ADC A, (HL)
+            0x8E => { self.registers.a = self.add(self.registers.a, self.byte_at_hl() +  if self.registers.carry_flag() {1} else {0}); },
+            // ADC A,n
+            0xCE => { let n = self.next_byte(); self.registers.a = self.add(self.registers.a, n + if self.registers.carry_flag() {1} else {0}); },
             // SUB A
             0x97 => { self.registers.a = self.subtract(self.registers.a, self.registers.a); },
             // SUB B
@@ -411,12 +444,37 @@ impl Gameboy {
             0xF3 => {},
             // EI
             // RLCA
+            0x07 => { 
+                self.registers.set_carry_flag(self.registers.a & 0b10000000 > 0);
+                self.registers.set_subtract_flag(false);
+                self.registers.set_half_carry_flag(false);
+                self.registers.a <<= 1;
+                self.registers.set_zero_flag(self.registers.a == 0);
+            },
             // RLA
+            0x17 => { 
+                self.registers.set_carry_flag(self.registers.a & 0b10000000 > 0);
+                self.registers.set_subtract_flag(false);
+                self.registers.set_half_carry_flag(false);
+                self.registers.a = (self.registers.a << 1) | if self.registers.carry_flag() {0b00000001} else {0} ;
+                self.registers.set_zero_flag(self.registers.a == 0);
+            },
             // RRCA
+            0x0F => {
+                self.registers.set_carry_flag(self.registers.a & 0b00000001 > 0);
+                self.registers.set_subtract_flag(false);
+                self.registers.set_half_carry_flag(false);
+                self.registers.a  >>= 1;
+                self.registers.set_zero_flag(self.registers.a == 0);
+            },
             // RRA
-            // 0x1F => {
-            //     self.registers.a = (self.registers.a >> 1);
-            // },
+            0x1F => {
+                self.registers.set_carry_flag(self.registers.a & 0b00000001 > 0);
+                self.registers.set_subtract_flag(false);
+                self.registers.set_half_carry_flag(false);
+                self.registers.a  = (self.registers.a >> 1) | if self.registers.carry_flag() {0b10000000} else {0};
+                self.registers.set_zero_flag(self.registers.a == 0);
+            },
             // RLC
             // RL
             // RRC
