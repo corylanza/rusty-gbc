@@ -8,8 +8,8 @@ use ram::Ram;
 use std::str;
 
 const ROM_START: u16 = 0;
-const ROM_END: u16 = 0x3FFF;
-const VRAM_START: u16 = 0x4000;
+const ROM_END: u16 = 0x7FFF;
+const VRAM_START: u16 = 0x8000;
 const VRAM_END: u16 = 0x9FFF;
 const ERAM_START: u16 = 0xA000;
 const ERAM_END: u16 = 0xBFFF;

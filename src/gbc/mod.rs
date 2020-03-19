@@ -35,8 +35,11 @@ impl Gameboy {
 
 
     pub fn cpu_step(&mut self) {
+        if self.registers.pc >= 0x7FFF {
+            panic!("program counter at address ${:04X}", self.registers.pc);
+        }
         let opcode = self.next_byte();
-        //println!("executing ${:02X} at address ${:04X}", opcode, self.registers.pc-1);
+        println!("executing ${:02X} at address ${:04X}", opcode, self.registers.pc-1);
 
         match opcode {
             // LD B,n
@@ -435,6 +438,11 @@ impl Gameboy {
             // DAA
             // CPL
             // CCF
+            0x3f => {
+                self.registers.set_carry_flag(!self.registers.carry_flag());
+                self.registers.set_subtract_flag(false);
+                self.registers.set_half_carry_flag(false);
+            }
             // SCF
             0x37 => { 
                 self.registers.set_subtract_flag(false);
