@@ -5,6 +5,7 @@ mod registers;
 pub use registers::Registers;
 use rom::Rom;
 use ram::Ram;
+use std::str;
 
 const ROM_START: u16 = 0;
 const ROM_END: u16 = 0x3FFF;
@@ -70,12 +71,15 @@ impl Memory {
     }
 
     pub fn write(&mut self, address: u16, value: u8) {
-        if address == 0xFF02 && value == 0x81 {
-            print!("{}", self.read(0xFF01) as char);
-        }
+        // if true {//address == 0xFF02 && value == 0x81 {
+        //     match str::from_utf8(&[value/* self.read(0xFF01) */]) {
+        //         Ok(s) => print!("{}", s),
+        //         _ => {}
+        //     }
+        // }
         //println!("writing {:02X} to address {:04X}", value, address);
         match address {
-            ROM_START ..= ROM_END => println!("writing {:02X} to ROM address {:04X}", value, address),
+            ROM_START ..= ROM_END => {},//println!("writing {:02X} to ROM address {:04X}", value, address),
             VRAM_START ..= VRAM_END => self.vram.write(address - VRAM_START, value),
             ERAM_START ..= ERAM_END => self.eram.write(address - ERAM_START, value),
             WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),

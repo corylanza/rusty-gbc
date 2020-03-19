@@ -36,7 +36,7 @@ impl Gameboy {
 
     pub fn cpu_step(&mut self) {
         let opcode = self.next_byte();
-        println!("executing ${:02X} at address ${:04X}", opcode, self.registers.pc-1);
+        //println!("executing ${:02X} at address ${:04X}", opcode, self.registers.pc-1);
 
         match opcode {
             // LD B,n
@@ -487,7 +487,7 @@ impl Gameboy {
             // RES
             // JP
             // JP nn
-            0xC3 => { let new_add = self.next_u16(); self.registers.pc = new_add; println!("jump to {:02X}", new_add); },
+            0xC3 => { let new_add = self.next_u16(); self.registers.pc = new_add; },
             // JP (HL)
             0xE9 => { self.registers.pc = self.registers.get_hl(); },
             // JR n
@@ -672,10 +672,10 @@ fn half_carry_subtraction(first: u8, second: u8) -> bool {
     ((first & 0x0F) as i16 - (second & 0x0F) as i16) < 0
 }
 
-fn half_carry_addition_u16(first: u16, second: u16) -> bool {
-    (((first & 0x00FF) + (second & 0x00FF)) & 0x0100) == 0x0100
-}
+// fn half_carry_addition_u16(first: u16, second: u16) -> bool {
+//     (((first & 0x00FF) + (second & 0x00FF)) & 0x0100) == 0x0100
+// }
 
-fn half_carry_subtraction_16(first: u8, second: u8) -> bool {
-    ((first & 0x00FF) as i32 - (second & 0x00FF) as i32) < 0
-}
+// fn half_carry_subtraction_16(first: u8, second: u8) -> bool {
+//     ((first & 0x00FF) as i32 - (second & 0x00FF) as i32) < 0
+// }
