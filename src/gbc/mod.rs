@@ -476,6 +476,7 @@ impl Gameboy {
             // DI
             0xF3 => {},
             // EI
+            0xFB => {}
             // RLCA
             0x07 => { 
                 self.registers.set_carry_flag(self.registers.a & 0b10000000 > 0);

@@ -61,6 +61,7 @@ impl Memory {
             WRAM_START ..= WRAM_END => self.wram.read(address - WRAM_START),
             ECHO_START ..= ECHO_END => self.echo.read(address - ECHO_START),
             OAM_START ..= OAM_END => self.oam.read(address - OAM_START),
+            0xFEA0 ..= 0xFEFF => 0xFF, // Unusable returns this
             IO_START ..= IO_END => self.io.read(address - IO_START),
             HRAM_START ..= HRAM_END => self.hram.read(address - HRAM_START),
             INTERUPTS_ENABLE => self.interupt_switch,
@@ -85,6 +86,7 @@ impl Memory {
             WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),
             ECHO_START ..= ECHO_END => self.echo.write(address - ECHO_START, value),
             OAM_START ..= OAM_END => self.oam.write(address - OAM_START, value),
+            0xFEA0 ..= 0xFEFF => { /* Unusable */},
             IO_START ..= IO_END => self.io.write(address - IO_START, value),
             HRAM_START ..= HRAM_END => self.hram.write(address - HRAM_START, value),
             INTERUPTS_ENABLE => self.interupt_switch = value,
