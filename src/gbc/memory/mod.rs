@@ -31,7 +31,6 @@ pub struct Memory {
     vram: Ram,
     eram: Ram,
     wram: Ram,
-    echo: Ram,
     oam: Ram,
     io: Ram,
     hram: Ram,
@@ -45,7 +44,6 @@ impl Memory {
             vram: Ram::new(0x8000),
             eram: Ram::new(0x8000),
             wram: Ram::new(0x2000),
-            echo: Ram::new(0x0), // TODO implement
             oam: Ram::new(0xA0),
             io: Ram::new(0x80),
             hram: Ram::new(0x7F),
@@ -59,13 +57,12 @@ impl Memory {
             VRAM_START ..= VRAM_END => self.vram.read(address - VRAM_START),
             ERAM_START ..= ERAM_END => self.eram.read(address - ERAM_START),
             WRAM_START ..= WRAM_END => self.wram.read(address - WRAM_START),
-            ECHO_START ..= ECHO_END => self.echo.read(address - ECHO_START),
+            ECHO_START ..= ECHO_END => self.wram.read(address - ECHO_START),
             OAM_START ..= OAM_END => self.oam.read(address - OAM_START),
             0xFEA0 ..= 0xFEFF => 0xFF, // Unusable returns this
             IO_START ..= IO_END => self.io.read(address - IO_START),
             HRAM_START ..= HRAM_END => self.hram.read(address - HRAM_START),
-            INTERUPTS_ENABLE => self.interupt_switch,
-            _ => panic!("Illegal read operation to address {:04X}", address)
+            INTERUPTS_ENABLE => self.interupt_switch
         };
         //println!("read {:02X} from address {:04X}", output, address);
         output
@@ -84,14 +81,13 @@ impl Memory {
             VRAM_START ..= VRAM_END => self.vram.write(address - VRAM_START, value),
             ERAM_START ..= ERAM_END => self.eram.write(address - ERAM_START, value),
             WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),
-            ECHO_START ..= ECHO_END => self.echo.write(address - ECHO_START, value),
+            ECHO_START ..= ECHO_END => self.wram.write(address - ECHO_START, value),
             OAM_START ..= OAM_END => self.oam.write(address - OAM_START, value),
             0xFEA0 ..= 0xFEFF => { /* Unusable */},
             IO_START ..= IO_END => self.io.write(address - IO_START, value),
             HRAM_START ..= HRAM_END => self.hram.write(address - HRAM_START, value),
             INTERUPTS_ENABLE => self.interupt_switch = value,
             // TODO Interupts may need to be writable here
-            _ => panic!("Illegal write operation to address {:04X}", address)
         }
     }
 
