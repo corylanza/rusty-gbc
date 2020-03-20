@@ -416,6 +416,26 @@ impl Gameboy {
                 self.set_byte_at_hl(new_hl); 
             },
             // ADD (16 bit)
+            // ADD HL,BC
+            0x09 => { 
+                let hl = self.add_u16(self.registers.get_hl(), self.registers.get_bc());
+                self.registers.set_hl(hl); 
+            },
+            // ADD HL,DE
+            0x19 => { 
+                let hl = self.add_u16(self.registers.get_hl(), self.registers.get_de());
+                self.registers.set_hl(hl); 
+            },
+            // ADD HL,HL
+            0x29 => { 
+                let hl = self.add_u16(self.registers.get_hl(), self.registers.get_hl());
+                self.registers.set_hl(hl); 
+            },
+            // ADD HL,SP
+            0x39 => { 
+                let hl = self.add_u16(self.registers.get_hl(), self.registers.sp);
+                self.registers.set_hl(hl); 
+            },
             // INC (16 bit)
             // INC BC
             0x03 => { self.registers.set_bc(self.registers.get_bc() + 1); },
@@ -582,6 +602,13 @@ impl Gameboy {
                     // RRA
                     // RLC
                     // RL
+                    0x12 => {
+                        self.registers.set_carry_flag(self.registers.d & 0b10000000 > 0);
+                        self.registers.set_subtract_flag(false);
+                        self.registers.set_half_carry_flag(false);
+                        self.registers.d = self.registers.d << 1;
+                        self.registers.set_zero_flag(self.registers.a == 0);
+                    },
                     // RRC
                     // RR
                     // RR D
@@ -689,6 +716,15 @@ impl Gameboy {
         new_val
     }
 
+    fn add_u16(&mut self, first: u16, second: u16) -> u16 {
+        self.registers.set_half_carry_flag(half_carry_addition_u16(first, second));
+        self.registers.set_carry_flag((first as u32) + (second as u32) > 0xFFFF);
+        self.registers.set_subtract_flag(false);
+        let new_val = first.wrapping_add(second);
+        self.registers.set_zero_flag(new_val == 0);
+        new_val
+    }
+
     fn subtract(&mut self, first: u8, second: u8) -> u8 {
         self.registers.set_half_carry_flag(half_carry_subtraction(first, second));
         self.registers.set_carry_flag((first as i16) - (second as i16) > 0x00);
@@ -735,9 +771,9 @@ fn half_carry_subtraction(first: u8, second: u8) -> bool {
     ((first & 0x0F) as i16 - (second & 0x0F) as i16) < 0
 }
 
-// fn half_carry_addition_u16(first: u16, second: u16) -> bool {
-//     (((first & 0x00FF) + (second & 0x00FF)) & 0x0100) == 0x0100
-// }
+fn half_carry_addition_u16(first: u16, second: u16) -> bool {
+    (((first & 0x00FF) + (second & 0x00FF)) & 0x0100) == 0x0100
+}
 
 // fn half_carry_subtraction_16(first: u8, second: u8) -> bool {
 //     ((first & 0x00FF) as i32 - (second & 0x00FF) as i32) < 0
