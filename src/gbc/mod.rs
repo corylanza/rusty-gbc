@@ -33,7 +33,6 @@ impl Gameboy {
         u16::from_le_bytes([self.next_byte(), self.next_byte()])
     }
 
-
     pub fn cpu_step(&mut self) {
         if self.registers.pc >= 0x7FFF {
             panic!("program counter at address ${:04X}", self.registers.pc);
@@ -522,7 +521,7 @@ impl Gameboy {
             // JP
             // JP nn
             0xC3 => { let new_add = self.next_u16(); self.registers.pc = new_add; },
-            // JP (HL)
+            // JP HL
             0xE9 => { self.registers.pc = self.registers.get_hl(); },
             // JR n
             0x18 => { self.jump_by_n_if(true); },
@@ -544,25 +543,37 @@ impl Gameboy {
             // CALL NZ,nn
             0xC4 => { 
                 if !self.registers.zero_flag() {
-                    self.registers.pc = self.next_u16();
+                    let next_addr = self.next_u16(); 
+                    let next_instr = self.registers.pc;
+                    self.memory.push_u16(&mut self.registers, next_instr);
+                    self.registers.pc = next_addr;
                 }
             },
             // CALL Z,nn
             0xCC => { 
                 if self.registers.zero_flag() {
-                    self.registers.pc = self.next_u16();
+                    let next_addr = self.next_u16(); 
+                    let next_instr = self.registers.pc;
+                    self.memory.push_u16(&mut self.registers, next_instr);
+                    self.registers.pc = next_addr;
                 }
             },
             // CALL NC,nn
             0xD4 => { 
                 if !self.registers.carry_flag() {
-                    self.registers.pc = self.next_u16();
+                    let next_addr = self.next_u16(); 
+                    let next_instr = self.registers.pc;
+                    self.memory.push_u16(&mut self.registers, next_instr);
+                    self.registers.pc = next_addr;
                 }
             },
             // CALL C,nn
             0xDC => { 
                 if self.registers.carry_flag() {
-                    self.registers.pc = self.next_u16();
+                    let next_addr = self.next_u16(); 
+                    let next_instr = self.registers.pc;
+                    self.memory.push_u16(&mut self.registers, next_instr);
+                    self.registers.pc = next_addr;
                 }
             },
             // RST 0x00
