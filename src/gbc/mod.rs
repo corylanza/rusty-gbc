@@ -544,7 +544,22 @@ impl Gameboy {
                     self.registers.pc = self.next_u16();
                 }
             },
-            // RST
+            // RST 0x00
+            0xC7 => { self.restart(0x00); },
+            // RST 0x08
+            0xCF => { self.restart(0x08); },
+            // RST 0x10
+            0xD7 => { self.restart(0x10); },
+            // RST 0x18
+            0xDF => { self.restart(0x18); },
+            // RST 0x20
+            0xE7 => { self.restart(0x20); },
+            // RST 0x28
+            0xEF => { self.restart(0x28); },
+            // RST 0x30
+            0xF7 => { self.restart(0x30); },
+            // RST 0x38
+            0xFF => { self.restart(0x38); },
             // RET
             0xC9 => {
                 self.registers.pc = self.memory.pop_u16(&mut self.registers);
@@ -575,9 +590,16 @@ impl Gameboy {
                     // SRA
                     // SRL
                     // BIT
-                    // BIT b,D
+                    // BIT 1,D
                     0x42 => { 
                         let t = self.registers.d & (1 << 0);
+                        self.registers.set_zero_flag(t & 0xFF == 0);
+                        self.registers.set_subtract_flag(false);
+                        self.registers.set_half_carry_flag(true);
+                    },
+                    // BIT b,D
+                    0x52 => { 
+                        let t = self.registers.d & (2 << 0);
                         self.registers.set_zero_flag(t & 0xFF == 0);
                         self.registers.set_subtract_flag(false);
                         self.registers.set_half_carry_flag(true);
@@ -639,6 +661,13 @@ impl Gameboy {
             self.registers.pc = next_addr;
             //println!("jumped to {:02X}", next_addr);
         }
+    }
+
+    /// jump to the current 0x0000 + n, push current address to stack
+    fn restart(&mut self, n: u8) {
+        let next_addr = self.registers.pc;
+        self.memory.push_u16(&mut self.registers, next_addr);
+        self.registers.pc = n as u16;
     }
 
     /// Compare register A with n, A - n subtraction
