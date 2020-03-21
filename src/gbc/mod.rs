@@ -38,7 +38,7 @@ impl Gameboy {
         //     panic!("program counter at address ${:04X}", self.registers.pc);
         // }
         let opcode = self.next_byte();
-        //println!("executing ${:02X} at address ${:04X}", opcode, self.registers.pc-1);
+        println!("executing ${:02X} at address ${:04X}", opcode, self.registers.pc-1);
 
         match opcode {
             // LD B,n
@@ -518,7 +518,15 @@ impl Gameboy {
             },
             // JP
             // JP nn
-            0xC3 => { let new_add = self.next_u16(); self.registers.pc = new_add; },
+            0xC3 => { self.jump_to_nn_if(true); },
+            // JP NZ
+            0xC2 => { self.jump_to_nn_if(!self.registers.zero_flag()); },
+            // JP Z
+            0xCA => { self.jump_to_nn_if(self.registers.zero_flag()); },
+            // JP NC
+            0xD2 => { self.jump_to_nn_if(!self.registers.carry_flag()); },
+            // JP C
+            0xDA => { self.jump_to_nn_if(self.registers.carry_flag()); },
             // JP HL
             0xE9 => { self.registers.pc = self.registers.get_hl(); },
             // JR n
@@ -577,12 +585,8 @@ impl Gameboy {
     /// param: `reg_val` - The value from a register from 
     /// which to logically or with register a
     fn logical_or(&mut self, reg_val: u8) {
-        if self.registers.a | reg_val == 0 {
-            self.registers.a = 0;
-            self.registers.set_zero_flag(true);
-        } else {
-            self.registers.a = 1;
-        }
+        self.registers.a = if self.registers.a > 0 || reg_val > 0 { 1 } else { 0 };
+        self.registers.set_zero_flag(self.registers.a == 0);
         self.registers.set_subtract_flag(false);
         self.registers.set_half_carry_flag(false);
         self.registers.set_carry_flag(false);
@@ -591,12 +595,8 @@ impl Gameboy {
     /// param: `reg_val` - The value from a register from 
     /// which to logically xor with register a
     fn logical_xor(&mut self, reg_val: u8) {
-        if self.registers.a ^ reg_val == 0 {
-            self.registers.a = 0;
-            self.registers.set_zero_flag(true);
-        } else {
-            self.registers.a = 1;
-        }
+        self.registers.a = if (self.registers.a > 0 && reg_val == 0) || (self.registers.a == 0 && reg_val > 0) { 1 } else { 0 };
+        self.registers.set_zero_flag(self.registers.a == 0);
         self.registers.set_subtract_flag(false);
         self.registers.set_half_carry_flag(false);
         self.registers.set_carry_flag(false);
@@ -605,12 +605,8 @@ impl Gameboy {
     /// param: `reg_val` - The value from a register from 
     /// which to logically and with register a
     fn logical_and(&mut self, reg_val: u8) {
-        if self.registers.a & reg_val == 0 {
-            self.registers.a = 0;
-            self.registers.set_zero_flag(true);
-        } else {
-            self.registers.a = 1;
-        }
+        self.registers.a = if self.registers.a > 0 && reg_val > 0 { 1 } else { 0 };
+        self.registers.set_zero_flag(self.registers.a == 0);
         self.registers.set_half_carry_flag(true);
         self.registers.set_subtract_flag(false);
         self.registers.set_carry_flag(false);
@@ -623,7 +619,13 @@ impl Gameboy {
         let next_addr = add_signed_u8_to_u16(self.registers.pc, n);
         if cond {
             self.registers.pc = next_addr;
-            //println!("jumped to {:02X}", next_addr);
+        }
+    }
+
+    fn jump_to_nn_if(&mut self, cond: bool) {
+        let nn = self.next_u16();
+        if cond {
+            self.registers.pc = nn;
         }
     }
 
@@ -672,8 +674,8 @@ impl Gameboy {
     }
 
     fn call_if(&mut self, cond: bool) {
+        let next_addr = self.next_u16(); 
         if cond {
-            let next_addr = self.next_u16(); 
             let next_instr = self.registers.pc;
             self.memory.push_u16(&mut self.registers, next_instr);
             self.registers.pc = next_addr;
