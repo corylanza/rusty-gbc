@@ -69,12 +69,12 @@ impl Memory {
     }
 
     pub fn write(&mut self, address: u16, value: u8) {
-        // if true {//address == 0xFF02 && value == 0x81 {
-        //     match str::from_utf8(&[value/* self.read(0xFF01) */]) {
-        //         Ok(s) => print!("{}", s),
-        //         _ => {}
-        //     }
-        // }
+        if address > 0xFF00 {//address == 0xFF02 && value == 0x81 {
+            match str::from_utf8(&[value/* self.read(0xFF01) */]) {
+                Ok(s) => print!("{}", s),
+                _ => {}
+            }
+        }
         //println!("writing {:02X} to address {:04X}", value, address);
         match address {
             ROM_START ..= ROM_END => {},//println!("writing {:02X} to ROM address {:04X}", value, address),

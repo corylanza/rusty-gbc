@@ -34,9 +34,9 @@ impl Gameboy {
     }
 
     pub fn cpu_step(&mut self) {
-        if self.registers.pc >= 0x7FFF {
-            panic!("program counter at address ${:04X}", self.registers.pc);
-        }
+        // if self.registers.pc >= 0x7FFF {
+        //     panic!("program counter at address ${:04X}", self.registers.pc);
+        // }
         let opcode = self.next_byte();
         println!("executing ${:02X} at address ${:04X}", opcode, self.registers.pc-1);
 
@@ -621,10 +621,13 @@ impl Gameboy {
                         self.registers.d = self.registers.d << 1;
                         self.registers.set_zero_flag(self.registers.a == 0);
                     },
-                    // RRC
                     // RR
-                    // RR D
-                    0x1A => { self.registers.d <<= 1; },
+                    // RR C
+                     0x19 => { self.registers.c = self.rotate_right(self.registers.c); },
+                    // // RR D
+                     0x1A => { self.registers.d = self.rotate_right(self.registers.d); },
+                    // // RR E
+                     0x1B => { self.registers.e = self.rotate_right(self.registers.e); },
                     // SLA
                     // SRA
                     // SRL
@@ -645,7 +648,8 @@ impl Gameboy {
                     },
                     _ => panic!("Unknown Opcode after CB modifier: ${:02X} at address ${:04X}", cb_opcode, self.registers.pc-1)
                 }
-            }
+            },
+            0xDD => {},
             _ => panic!("Unknown Opcode: ${:02X} at address ${:04X}", opcode, self.registers.pc-1)
         }
     }
@@ -757,6 +761,15 @@ impl Gameboy {
         if cond {
             self.registers.pc = self.memory.pop_u16(&mut self.registers);
         }
+    }
+
+    fn rotate_right(&mut self, value: u8) -> u8 {
+        self.registers.set_carry_flag(value & 0b00000001 > 0);
+        self.registers.set_subtract_flag(false);
+        self.registers.set_half_carry_flag(false);
+        let new_value = (value >> 1) | if self.registers.carry_flag() {0b10000000} else {0};
+        self.registers.set_zero_flag(new_value == 0);
+        new_value
     }
 
     /// Gets the value of the byte in memory at address stored in HL register
