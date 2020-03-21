@@ -3,16 +3,18 @@ mod memory;
 use memory::Memory;
 use memory::Registers;
 
-pub struct Gameboy {
+pub struct Cpu {
     mem: Memory,
-    regs: Registers
+    regs: Registers,
+    ime: bool // disables interrupts when false overriding IE register
 }
 
-impl Gameboy {
-    pub fn new(cartridge_path: &str) -> Gameboy {
-        Gameboy {
+impl Cpu {
+    pub fn new(cartridge_path: &str) -> Cpu {
+        Cpu {
             mem: Memory::new(cartridge_path),
-            regs: Registers::new()
+            regs: Registers::new(),
+            ime: true
         }
     }
 
@@ -35,11 +37,8 @@ impl Gameboy {
 
     /// returns number of cycles completed
     pub fn cpu_step(&mut self) -> u8 {
-        // if self.registers.pc >= 0x7FFF {
-        //     panic!("program counter at address ${:04X}", self.registers.pc);
-        // }
         let opcode = self.next_byte();
-        println!("executing ${:02X} at address ${:04X} bc: ${:04X}", opcode, self.regs.pc-1, self.regs.get_bc());
+        //println!("executing ${:02X} at address ${:04X}", opcode, self.regs.pc-1);
 
         match opcode {
             // LD B,n
@@ -266,23 +265,23 @@ impl Gameboy {
             // ADD A,n
             0xC6 => { let n = self.next_byte(); self.regs.a = self.add(self.regs.a, n); 8 },
             // ADC A,A
-            0x8F => { self.regs.a = self.add(self.regs.a, self.regs.a + if self.regs.carry_flag() {1} else {0}); 4 },
+            0x8F => { self.regs.a = self.add_carry(self.regs.a, self.regs.a); 4 },
             // ADC A,B
-            0x88 => { self.regs.a = self.add(self.regs.a, self.regs.b + if self.regs.carry_flag() {1} else {0}); 4 },
+            0x88 => { self.regs.a = self.add(self.regs.a, self.regs.b); 4 },
             // ADC A,C
-            0x89 => { self.regs.a = self.add(self.regs.a, self.regs.c + if self.regs.carry_flag() {1} else {0}); 4 },
+            0x89 => { self.regs.a = self.add(self.regs.a, self.regs.c); 4 },
             // ADC A,D
-            0x8A => { self.regs.a = self.add(self.regs.a, self.regs.d + if self.regs.carry_flag() {1} else {0}); 4 },
+            0x8A => { self.regs.a = self.add(self.regs.a, self.regs.d); 4 },
             // ADC A,E
-            0x8B => { self.regs.a = self.add(self.regs.a, self.regs.e + if self.regs.carry_flag() {1} else {0}); 4 },
+            0x8B => { self.regs.a = self.add(self.regs.a, self.regs.e); 4 },
             // ADC A,H
-            0x8C => { self.regs.a = self.add(self.regs.a, self.regs.h + if self.regs.carry_flag() {1} else {0}); 4 },
+            0x8C => { self.regs.a = self.add(self.regs.a, self.regs.h); 4 },
             // ADC A,L
-            0x8D => { self.regs.a = self.add(self.regs.a, self.regs.l + if self.regs.carry_flag() {1} else {0}); 4 },
+            0x8D => { self.regs.a = self.add(self.regs.a, self.regs.l); 4 },
             // ADC A, (HL)
-            0x8E => { self.regs.a = self.add(self.regs.a, self.byte_at_hl() +  if self.regs.carry_flag() {1} else {0}); 8 },
+            0x8E => { self.regs.a = self.add(self.regs.a, self.byte_at_hl()); 8 },
             // ADC A,n
-            0xCE => { let n = self.next_byte(); self.regs.a = self.add(self.regs.a, n + if self.regs.carry_flag() {1} else {0}); 8 },
+            0xCE => { let n = self.next_byte(); self.regs.a = self.add(self.regs.a, n); 8 },
             // SUB A
             0x97 => { self.regs.a = self.subtract(self.regs.a, self.regs.a); 4 },
             // SUB B
@@ -494,9 +493,9 @@ impl Gameboy {
             // HALT
             // STOP
             // DI
-            0xF3 => { 4 },
+            0xF3 => { self.ime = false; 4 },
             // EI
-            0xFB => { 4 }
+            0xFB => { self.ime = true; 4 }
             // RLCA
             0x07 => { 
                 self.regs.set_carry_flag(self.regs.a & 0b10000000 > 0);
@@ -663,6 +662,16 @@ impl Gameboy {
     }
 
     fn add(&mut self, first: u8, second: u8) -> u8 {
+        self.regs.set_half_carry_flag(half_carry_addition(first, second));
+        self.regs.set_carry_flag((first as u16) + (second as u16) > 0xFF);
+        self.regs.set_subtract_flag(false);
+        let new_val = first.wrapping_add(second);
+        self.regs.set_zero_flag(new_val == 0);
+        new_val
+    }
+
+    fn add_carry(&mut self, first: u8, second: u8) -> u8 {
+        let second = second + if self.regs.carry_flag() { 1 } else { 0 };
         self.regs.set_half_carry_flag(half_carry_addition(first, second));
         self.regs.set_carry_flag((first as u16) + (second as u16) > 0xFF);
         self.regs.set_subtract_flag(false);

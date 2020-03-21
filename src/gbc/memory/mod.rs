@@ -75,6 +75,9 @@ impl Memory {
                 _ => {}
             }
         }
+        if address == 0xFF0F {
+            println!("interrupt {:02X}", value);
+        }
         //println!("writing {:02X} to address {:04X}", value, address);
         match address {
             ROM_START ..= ROM_END => {},//println!("writing {:02X} to ROM address {:04X}", value, address),

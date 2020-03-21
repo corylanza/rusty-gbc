@@ -1,10 +1,10 @@
 use std::env;
 mod gbc;
 
-use gbc::Gameboy;
+use gbc::Cpu;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let mut gbc = Gameboy::new(&args[1]);
+    let mut gbc = Cpu::new(&args[1]);
     gbc.run();
 }
