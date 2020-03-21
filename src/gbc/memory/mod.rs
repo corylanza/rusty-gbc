@@ -69,8 +69,8 @@ impl Memory {
     }
 
     pub fn write(&mut self, address: u16, value: u8) {
-        if address > 0xFF00 {//address == 0xFF02 && value == 0x81 {
-            match str::from_utf8(&[value/* self.read(0xFF01) */]) {
+        if address == 0xFF02 && value == 0x81 {
+            match str::from_utf8(&[self.read(0xFF01)]) {
                 Ok(s) => print!("{}", s),
                 _ => {}
             }

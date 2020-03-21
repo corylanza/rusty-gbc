@@ -38,7 +38,7 @@ impl Gameboy {
         //     panic!("program counter at address ${:04X}", self.registers.pc);
         // }
         let opcode = self.next_byte();
-        println!("executing ${:02X} at address ${:04X}", opcode, self.registers.pc-1);
+        //println!("executing ${:02X} at address ${:04X}", opcode, self.registers.pc-1);
 
         match opcode {
             // LD B,n
@@ -222,9 +222,13 @@ impl Gameboy {
             // LD SP, HL
             0xF9 => { self.registers.sp = self.registers.get_hl(); },
             // LDHL SP, n
-            0xF8 => {},
+            0xF8 => { 
+                panic!("nooooo");
+                //let n = self.next_byte(); 
+                //self.registers.set_hl(self.memory.read(n)); 
+            },
             // LD (nn), SP
-            0x08 => {},
+            0x08 => { self.registers.sp = self.next_u16(); },
             // PUSH AF
             0xF5 => { let af = self.registers.get_af(); self.memory.push_u16(&mut self.registers, af); },
             // PUSH BC
@@ -453,9 +457,13 @@ impl Gameboy {
             0x2B => { self.registers.set_hl(self.registers.get_hl() - 1); },
             // DEC SP
             0x3B => { self.registers.sp -= 1; },
-            // SWAP
             // DAA
             // CPL
+            0x2F => {
+                self.registers.a = !self.registers.a; 
+                self.registers.set_subtract_flag(true); 
+                self.registers.set_half_carry_flag(true);
+            },
             // CCF
             0x3f => {
                 self.registers.set_carry_flag(!self.registers.carry_flag());
@@ -508,16 +516,6 @@ impl Gameboy {
                 self.registers.a  = (self.registers.a >> 1) | if self.registers.carry_flag() {0b10000000} else {0};
                 self.registers.set_zero_flag(self.registers.a == 0);
             },
-            // RLC
-            // RL
-            // RRC
-            // RR
-            // SLA
-            // SRA
-            // SRL
-            // BIT
-            // SET
-            // RES
             // JP
             // JP nn
             0xC3 => { let new_add = self.next_u16(); self.registers.pc = new_add; },
@@ -534,48 +532,15 @@ impl Gameboy {
             // JR C, *
             0x38 => { self.jump_by_n_if(self.registers.zero_flag()); },
             // CALL nn
-            0xCD => { 
-                let next_addr = self.next_u16(); 
-                let next_instr = self.registers.pc;
-                self.memory.push_u16(&mut self.registers, next_instr);
-                self.registers.pc = next_addr;
-            },
+            0xCD => { self.call_if(true); },
             // CALL NZ,nn
-            0xC4 => { 
-                if !self.registers.zero_flag() {
-                    let next_addr = self.next_u16(); 
-                    let next_instr = self.registers.pc;
-                    self.memory.push_u16(&mut self.registers, next_instr);
-                    self.registers.pc = next_addr;
-                }
-            },
+            0xC4 => { self.call_if(!self.registers.zero_flag()); },
             // CALL Z,nn
-            0xCC => { 
-                if self.registers.zero_flag() {
-                    let next_addr = self.next_u16(); 
-                    let next_instr = self.registers.pc;
-                    self.memory.push_u16(&mut self.registers, next_instr);
-                    self.registers.pc = next_addr;
-                }
-            },
+            0xCC => { self.call_if(self.registers.zero_flag()); },
             // CALL NC,nn
-            0xD4 => { 
-                if !self.registers.carry_flag() {
-                    let next_addr = self.next_u16(); 
-                    let next_instr = self.registers.pc;
-                    self.memory.push_u16(&mut self.registers, next_instr);
-                    self.registers.pc = next_addr;
-                }
-            },
+            0xD4 => { self.call_if(self.registers.carry_flag()); },
             // CALL C,nn
-            0xDC => { 
-                if self.registers.carry_flag() {
-                    let next_addr = self.next_u16(); 
-                    let next_instr = self.registers.pc;
-                    self.memory.push_u16(&mut self.registers, next_instr);
-                    self.registers.pc = next_addr;
-                }
-            },
+            0xDC => { self.call_if(self.registers.carry_flag()); },
             // RST 0x00
             0xC7 => { self.restart(0x00); },
             // RST 0x08
@@ -593,9 +558,7 @@ impl Gameboy {
             // RST 0x38
             0xFF => { self.restart(0x38); },
             // RET
-            0xC9 => {
-                self.registers.pc = self.memory.pop_u16(&mut self.registers);
-            }
+            0xC9 => { self.return_if(true); }
             // RET NZ
             0xC0 => { self.return_if(!self.registers.zero_flag()); },
             // RET Z
@@ -605,50 +568,8 @@ impl Gameboy {
             // RET C
             0xD8 => { self.return_if(self.registers.carry_flag()); },
             // RETI
-            0xCB => {
-                let cb_opcode = self.next_byte();
-                match cb_opcode {
-                    // RLCA
-                    // RLA
-                    // RRCA
-                    // RRA
-                    // RLC
-                    // RL
-                    0x12 => {
-                        self.registers.set_carry_flag(self.registers.d & 0b10000000 > 0);
-                        self.registers.set_subtract_flag(false);
-                        self.registers.set_half_carry_flag(false);
-                        self.registers.d = self.registers.d << 1;
-                        self.registers.set_zero_flag(self.registers.a == 0);
-                    },
-                    // RR
-                    // RR C
-                     0x19 => { self.registers.c = self.rotate_right(self.registers.c); },
-                    // // RR D
-                     0x1A => { self.registers.d = self.rotate_right(self.registers.d); },
-                    // // RR E
-                     0x1B => { self.registers.e = self.rotate_right(self.registers.e); },
-                    // SLA
-                    // SRA
-                    // SRL
-                    // BIT
-                    // BIT 1,D
-                    0x42 => { 
-                        let t = self.registers.d & (1 << 0);
-                        self.registers.set_zero_flag(t & 0xFF == 0);
-                        self.registers.set_subtract_flag(false);
-                        self.registers.set_half_carry_flag(true);
-                    },
-                    // BIT b,D
-                    0x52 => { 
-                        let t = self.registers.d & (2 << 0);
-                        self.registers.set_zero_flag(t & 0xFF == 0);
-                        self.registers.set_subtract_flag(false);
-                        self.registers.set_half_carry_flag(true);
-                    },
-                    _ => panic!("Unknown Opcode after CB modifier: ${:02X} at address ${:04X}", cb_opcode, self.registers.pc-1)
-                }
-            },
+            // CB ops
+            0xCB => { self.cb_opcode_step(); },
             0xDD => {},
             _ => panic!("Unknown Opcode: ${:02X} at address ${:04X}", opcode, self.registers.pc-1)
         }
@@ -750,12 +671,14 @@ impl Gameboy {
         new_val
     }
 
-    // fn jump_if(&mut self, addr: u16, cond: bool) {
-    //     if cond {
-    //         self.registers.pc = addr;
-    //         //println!("jumped to {:02X}", addr);
-    //     }
-    // }
+    fn call_if(&mut self, cond: bool) {
+        if cond {
+            let next_addr = self.next_u16(); 
+            let next_instr = self.registers.pc;
+            self.memory.push_u16(&mut self.registers, next_instr);
+            self.registers.pc = next_addr;
+        }
+    }
 
     fn return_if(&mut self, cond: bool) {
         if cond {
@@ -780,6 +703,51 @@ impl Gameboy {
     // Sets the value of the byte in memory at address stored in HL register
     fn set_byte_at_hl(&mut self, value: u8) {
         self.memory.write(self.registers.get_hl(), value);
+    }
+
+    fn cb_opcode_step(&mut self) {
+        let cb_opcode = self.next_byte();
+        match cb_opcode {
+            // RLCA
+            // RLA
+            // RRCA
+            // RRA
+            // RLC
+            // RL
+            0x12 => {
+                self.registers.set_carry_flag(self.registers.d & 0b10000000 > 0);
+                self.registers.set_subtract_flag(false);
+                self.registers.set_half_carry_flag(false);
+                self.registers.d = self.registers.d << 1;
+                self.registers.set_zero_flag(self.registers.a == 0);
+            },
+            // RR
+            // RR C
+                0x19 => { self.registers.c = self.rotate_right(self.registers.c); },
+            // // RR D
+                0x1A => { self.registers.d = self.rotate_right(self.registers.d); },
+            // // RR E
+                0x1B => { self.registers.e = self.rotate_right(self.registers.e); },
+            // SLA
+            // SRA
+            // SRL
+            // BIT
+            // BIT 1,D
+            0x42 => { 
+                let t = self.registers.d & (1 << 0);
+                self.registers.set_zero_flag(t & 0xFF == 0);
+                self.registers.set_subtract_flag(false);
+                self.registers.set_half_carry_flag(true);
+            },
+            // BIT b,D
+            0x52 => { 
+                let t = self.registers.d & (2 << 0);
+                self.registers.set_zero_flag(t & 0xFF == 0);
+                self.registers.set_subtract_flag(false);
+                self.registers.set_half_carry_flag(true);
+            },
+            _ => panic!("Unknown Opcode after CB modifier: ${:02X} at address ${:04X}", cb_opcode, self.registers.pc-1)
+        }
     }
 }
 
