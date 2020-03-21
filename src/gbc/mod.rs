@@ -39,7 +39,7 @@ impl Gameboy {
         //     panic!("program counter at address ${:04X}", self.registers.pc);
         // }
         let opcode = self.next_byte();
-        //println!("executing ${:02X} at address ${:04X} bc: ${:04X}", opcode, self.regs.pc-1, self.regs.get_bc());
+        println!("executing ${:02X} at address ${:04X} bc: ${:04X}", opcode, self.regs.pc-1, self.regs.get_bc());
 
         match opcode {
             // LD B,n
@@ -657,7 +657,7 @@ impl Gameboy {
     fn compare(&mut self, n: u8) {
         let a = self.regs.a;
         self.regs.set_zero_flag(a == n);
-        self.regs.set_carry_flag(a > n);
+        self.regs.set_carry_flag(a < n);
         self.regs.set_half_carry_flag(half_carry_subtraction(a, n));
         self.regs.set_subtract_flag(true);
     }
