@@ -740,15 +740,45 @@ impl Cpu {
             // RLA
             // RRCA
             // RRA
-            // RLC
+            // RLC A
+            0x07 => { self.regs.a = self.rotate_left_carry(self.regs.a); 8 },
+            // RLC B
+            0x00 => { self.regs.b = self.rotate_left_carry(self.regs.b); 8 },
+            // RLC C
+            0x01 => { self.regs.c = self.rotate_left_carry(self.regs.c); 8 },
+            // RLC D
+            0x02 => { self.regs.d = self.rotate_left_carry(self.regs.d); 8 },
+            // RLC E
+            0x03 => { self.regs.e = self.rotate_left_carry(self.regs.e); 8 },
+            // RLC H
+            0x04 => { self.regs.h = self.rotate_left_carry(self.regs.h); 8 },
+            // RLC L
+            0x05 => { self.regs.l = self.rotate_left_carry(self.regs.l); 8 },
+            // RLC (HL)
+            0x06 => { 
+                let value = self.rotate_left_carry(self.byte_at_hl());
+                self.set_byte_at_hl(value);
+                 16 
+            },
+            // RL A
+            0x17 => { self.regs.a = self.rotate_left(self.regs.a); 8 },
+            // RL B
+            0x10 => { self.regs.b = self.rotate_left(self.regs.b); 8 },
+            // RL C
+            0x11 => { self.regs.c = self.rotate_left(self.regs.c); 8 },
             // RL D
-            0x12 => {
-                self.regs.set_carry_flag(self.regs.d & 0b10000000 > 0);
-                self.regs.set_subtract_flag(false);
-                self.regs.set_half_carry_flag(false);
-                self.regs.d = self.regs.d << 1;
-                self.regs.set_zero_flag(self.regs.a == 0);
-                8
+            0x12 => { self.regs.d = self.rotate_left(self.regs.d); 8 },
+            // RL E
+            0x13 => { self.regs.e = self.rotate_left(self.regs.e); 8 },
+            // RL H
+            0x14 => { self.regs.h = self.rotate_left(self.regs.h); 8 },
+            // RL L
+            0x15 => { self.regs.l = self.rotate_left(self.regs.l); 8 },
+            // RL (HL)
+            0x16 => { 
+                let value = self.rotate_left(self.byte_at_hl());
+                self.set_byte_at_hl(value);
+                 16 
             },
             // RR
             // RR C
@@ -779,6 +809,24 @@ impl Cpu {
             },
             _ => panic!("Unknown Opcode after CB modifier: ${:02X} at address ${:04X}", cb_opcode, self.regs.pc-1)
         }
+    }
+
+    fn rotate_left_carry(&mut self, value: u8) -> u8 {
+        let new_value = (value << 1) | if self.regs.carry_flag() { 0b00000001 } else { 0 };
+        self.regs.set_carry_flag(value & 0b10000000 > 0);
+        self.regs.set_zero_flag(new_value == 0);
+        self.regs.set_half_carry_flag(false);
+        self.regs.set_subtract_flag(false);
+        new_value
+    }
+
+    fn rotate_left(&mut self, value: u8) -> u8 {
+        let new_value = value << 1;
+        self.regs.set_carry_flag(value & 0b10000000 > 0);
+        self.regs.set_zero_flag(new_value == 0);
+        self.regs.set_half_carry_flag(false);
+        self.regs.set_subtract_flag(false);
+        new_value
     }
 }
 
