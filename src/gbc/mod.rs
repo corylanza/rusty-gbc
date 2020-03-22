@@ -498,41 +498,13 @@ impl Cpu {
             // EI
             0xFB => { self.ime = true; 4 }
             // RLCA
-            0x07 => { 
-                self.regs.set_carry_flag(self.regs.a & 0b10000000 > 0);
-                self.regs.set_subtract_flag(false);
-                self.regs.set_half_carry_flag(false);
-                self.regs.a <<= 1;
-                self.regs.set_zero_flag(self.regs.a == 0);
-                4
-            },
+            0x07 => { self.regs.a = self.rotate_left_carry(self.regs.a); 4 },
             // RLA
-            0x17 => { 
-                self.regs.set_carry_flag(self.regs.a & 0b10000000 > 0);
-                self.regs.set_subtract_flag(false);
-                self.regs.set_half_carry_flag(false);
-                self.regs.a = (self.regs.a << 1) | if self.regs.carry_flag() {0b00000001} else {0} ;
-                self.regs.set_zero_flag(self.regs.a == 0);
-                4
-            },
+            0x17 => { self.regs.a = self.rotate_left(self.regs.a); 4 },
             // RRCA
-            0x0F => {
-                self.regs.set_carry_flag(self.regs.a & 0b00000001 > 0);
-                self.regs.set_subtract_flag(false);
-                self.regs.set_half_carry_flag(false);
-                self.regs.a  >>= 1;
-                self.regs.set_zero_flag(self.regs.a == 0);
-                4
-            },
+            0x0F => { self.regs.a = self.rotate_right_carry(self.regs.a); 4 },
             // RRA
-            0x1F => {
-                self.regs.set_carry_flag(self.regs.a & 0b00000001 > 0);
-                self.regs.set_subtract_flag(false);
-                self.regs.set_half_carry_flag(false);
-                self.regs.a  = (self.regs.a >> 1) | if self.regs.carry_flag() {0b10000000} else {0};
-                self.regs.set_zero_flag(self.regs.a == 0);
-                4
-            },
+            0x1F => { self.regs.a = self.rotate_right(self.regs.a); 4 },
             // JP
             // JP nn
             0xC3 => { self.jump_to_nn_if(true); 12 },
@@ -714,15 +686,6 @@ impl Cpu {
         }
     }
 
-    fn rotate_right(&mut self, value: u8) -> u8 {
-        self.regs.set_carry_flag(value & 0b00000001 > 0);
-        self.regs.set_subtract_flag(false);
-        self.regs.set_half_carry_flag(false);
-        let new_value = (value >> 1) | if self.regs.carry_flag() {0b10000000} else {0};
-        self.regs.set_zero_flag(new_value == 0);
-        new_value
-    }
-
     /// Gets the value of the byte in memory at address stored in HL register
     fn byte_at_hl(&self) -> u8 {
         self.mem.read(self.regs.get_hl())
@@ -736,10 +699,6 @@ impl Cpu {
     fn cb_opcode_step(&mut self) -> u8 {
         let cb_opcode = self.next_byte();
         match cb_opcode {
-            // RLCA
-            // RLA
-            // RRCA
-            // RRA
             // RLC A
             0x07 => { self.regs.a = self.rotate_left_carry(self.regs.a); 8 },
             // RLC B
@@ -758,7 +717,7 @@ impl Cpu {
             0x06 => { 
                 let value = self.rotate_left_carry(self.byte_at_hl());
                 self.set_byte_at_hl(value);
-                 16 
+                16 
             },
             // RL A
             0x17 => { self.regs.a = self.rotate_left(self.regs.a); 8 },
@@ -778,18 +737,108 @@ impl Cpu {
             0x16 => { 
                 let value = self.rotate_left(self.byte_at_hl());
                 self.set_byte_at_hl(value);
-                 16 
+                16 
             },
-            // RR
+            // RRC A
+            0x0F => { self.regs.a = self.rotate_right_carry(self.regs.a); 8 },
+            // RRC B
+            0x08 => { self.regs.b = self.rotate_right_carry(self.regs.b); 8 },
+            // RRC C
+            0x09 => { self.regs.c = self.rotate_right_carry(self.regs.c); 8 },
+            // RRC D
+            0x0A => { self.regs.d = self.rotate_right_carry(self.regs.d); 8 },
+            // RRC E
+            0x0B => { self.regs.e = self.rotate_right_carry(self.regs.e); 8 },
+            // RRC H
+            0x0C => { self.regs.h = self.rotate_right_carry(self.regs.h); 8 },
+            // RRC L
+            0x0D => { self.regs.l = self.rotate_right_carry(self.regs.l); 8 },
+            // RRC (HL)
+            0x0E => { 
+                let value = self.rotate_right_carry(self.byte_at_hl());
+                self.set_byte_at_hl(value);
+                16 
+            },
+            // RR A
+            0x1F => { self.regs.a = self.rotate_right(self.regs.a); 8 },
+            // RR B
+            0x18 => { self.regs.b = self.rotate_right(self.regs.b); 8 },
             // RR C
-                0x19 => { self.regs.c = self.rotate_right(self.regs.c); 8 },
-            // // RR D
-                0x1A => { self.regs.d = self.rotate_right(self.regs.d); 8 },
-            // // RR E
-                0x1B => { self.regs.e = self.rotate_right(self.regs.e); 8 },
-            // SLA
-            // SRA
-            // SRL
+            0x19 => { self.regs.c = self.rotate_right(self.regs.c); 8 },
+            // RR D
+            0x1A => { self.regs.d = self.rotate_right(self.regs.d); 8 },
+            // RR E
+            0x1B => { self.regs.e = self.rotate_right(self.regs.e); 8 },
+            // RR H
+            0x1C => { self.regs.h = self.rotate_right(self.regs.h); 8 },
+            // RR L
+            0x1D => { self.regs.l = self.rotate_right(self.regs.l); 8 },
+            // RR (HL)
+            0x1E => { 
+                let value = self.rotate_right(self.byte_at_hl());
+                self.set_byte_at_hl(value);
+                16 
+            },
+            // SLA A
+            0x27 => { self.regs.a = self.shift_left(self.regs.a); 8 },
+            // SLA B
+            0x20 => { self.regs.b = self.shift_left(self.regs.b); 8 },
+            // SLA C
+            0x21 => { self.regs.c = self.shift_left(self.regs.c); 8 },
+            // SLA D
+            0x22 => { self.regs.d = self.shift_left(self.regs.d); 8 },
+            // SLA E
+            0x23 => { self.regs.e = self.shift_left(self.regs.e); 8 },
+            // SLA H
+            0x24 => { self.regs.h = self.shift_left(self.regs.h); 8 },
+            // SLA L
+            0x25 => { self.regs.l = self.shift_left(self.regs.l); 8 },
+            // SLA (HL)
+            0x26 => {
+                let value = self.shift_left(self.byte_at_hl());
+                self.set_byte_at_hl(value);
+                16 
+            },
+            // SRA A
+            0x2F => { self.regs.a = self.shift_right(self.regs.a); 8 },
+            // SRA B
+            0x28 => { self.regs.b = self.shift_right(self.regs.b); 8 },
+            // SRA C
+            0x29 => { self.regs.c = self.shift_right(self.regs.c); 8 },
+            // SRA D
+            0x2A => { self.regs.d = self.shift_right(self.regs.d); 8 },
+            // SRA E
+            0x2B => { self.regs.e = self.shift_right(self.regs.e); 8 },
+            // SRA H
+            0x2C => { self.regs.h = self.shift_right(self.regs.h); 8 },
+            // SRA L
+            0x2D => { self.regs.l = self.shift_right(self.regs.l); 8 },
+            // SRA (HL)
+            0x2E => {
+                let value = self.shift_right(self.byte_at_hl());
+                self.set_byte_at_hl(value);
+                16 
+            },
+            // SRL A
+            0x3F => { self.regs.a = self.shift_right_zero(self.regs.a); 8 },
+            // SRL B
+            0x38 => { self.regs.b = self.shift_right_zero(self.regs.b); 8 },
+            // SRL C
+            0x39 => { self.regs.c = self.shift_right_zero(self.regs.c); 8 },
+            // SRL D
+            0x3A => { self.regs.d = self.shift_right_zero(self.regs.d); 8 },
+            // SRL E
+            0x3B => { self.regs.e = self.shift_right_zero(self.regs.e); 8 },
+            // SRL H
+            0x3C => { self.regs.h = self.shift_right_zero(self.regs.h); 8 },
+            // SRL L
+            0x3D => { self.regs.l = self.shift_right_zero(self.regs.l); 8 },
+            // SRL (HL)
+            0x3E => {
+                let value = self.shift_right_zero(self.byte_at_hl());
+                self.set_byte_at_hl(value);
+                16 
+            },
             // BIT
             // BIT 1,D
             0x42 => { 
@@ -821,8 +870,56 @@ impl Cpu {
     }
 
     fn rotate_left(&mut self, value: u8) -> u8 {
+        // by setting carry flag first this is used to rotate
+        self.regs.set_carry_flag(value & 0b10000000 > 0);
+        let new_value = value << 1 | if self.regs.carry_flag() { 0b00000001 } else { 0 };
+        self.regs.set_zero_flag(new_value == 0);
+        self.regs.set_half_carry_flag(false);
+        self.regs.set_subtract_flag(false);
+        new_value
+    }
+
+    fn rotate_right_carry(&mut self, value: u8) -> u8 {
+        let new_value = (value >> 1) | if self.regs.carry_flag() { 0b10000000 } else { 0 };
+        self.regs.set_carry_flag(value & 0b00000001 > 0);
+        self.regs.set_zero_flag(new_value == 0);
+        self.regs.set_half_carry_flag(false);
+        self.regs.set_subtract_flag(false);
+        new_value
+    }
+
+    fn rotate_right(&mut self, value: u8) -> u8 {
+        // by setting carry flag first this is used to rotate
+        self.regs.set_carry_flag(value & 0b00000001 > 0);
+        let new_value = value >> 1 | if self.regs.carry_flag() { 0b10000000 } else { 0 };
+        self.regs.set_zero_flag(new_value == 0);
+        self.regs.set_half_carry_flag(false);
+        self.regs.set_subtract_flag(false);
+        new_value
+    }
+
+    fn shift_left(&mut self, value: u8) -> u8 {
         let new_value = value << 1;
         self.regs.set_carry_flag(value & 0b10000000 > 0);
+        self.regs.set_zero_flag(new_value == 0);
+        self.regs.set_half_carry_flag(false);
+        self.regs.set_subtract_flag(false);
+        new_value
+    }
+
+    fn shift_right_zero(&mut self, value: u8) -> u8 {
+        let new_value = value >> 1;
+        self.regs.set_carry_flag(value & 0b00000001 > 0);
+        self.regs.set_zero_flag(new_value == 0);
+        self.regs.set_half_carry_flag(false);
+        self.regs.set_subtract_flag(false);
+        new_value
+    }
+
+    fn shift_right(&mut self, value: u8) -> u8 {
+        // set carry first such that bit 7 remains same in next step
+        self.regs.set_carry_flag(value & 0b00000001 > 0);
+        let new_value = (value >> 1) | if self.regs.carry_flag() { 0b10000000 } else { 0 };
         self.regs.set_zero_flag(new_value == 0);
         self.regs.set_half_carry_flag(false);
         self.regs.set_subtract_flag(false);
