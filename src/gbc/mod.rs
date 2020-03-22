@@ -1,4 +1,5 @@
 mod memory;
+mod boot;
 
 use memory::Memory;
 use memory::Registers;
