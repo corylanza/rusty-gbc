@@ -839,23 +839,134 @@ impl Cpu {
                 self.set_byte_at_hl(value);
                 16 
             },
-            // BIT
+            // BIT 0,A
+            0x47 => { self.test_bit(self.regs.a, 0); 8 },
+            // BIT 0,B
+            0x40 => { self.test_bit(self.regs.b, 0); 8 },
+            // BIT 0,C
+            0x41 => { self.test_bit(self.regs.c, 0); 8 },
+            // BIT 0,D
+            0x42 => { self.test_bit(self.regs.d, 0); 8 },
+            // BIT 0,E
+            0x43 => { self.test_bit(self.regs.e, 0); 8 },
+            // BIT 0,H
+            0x44 => { self.test_bit(self.regs.h, 0); 8 },
+            // BIT 0,L
+            0x45 => { self.test_bit(self.regs.l, 0); 8 },
+            // BIT 0, (HL)
+            0x46 => { self.test_bit(self.byte_at_hl(), 0); 16 },
+            // BIT 1,A
+            0x4F => { self.test_bit(self.regs.a, 1); 8 },
+            // BIT 1,B
+            0x48 => { self.test_bit(self.regs.b, 1); 8 },
+            // BIT 1,C
+            0x49 => { self.test_bit(self.regs.c, 1); 8 },
             // BIT 1,D
-            0x42 => { 
-                let t = self.regs.d & (1 << 0);
-                self.regs.set_zero_flag(t & 0xFF == 0);
-                self.regs.set_subtract_flag(false);
-                self.regs.set_half_carry_flag(true);
-                8
-            },
-            // BIT b,D
-            0x52 => { 
-                let t = self.regs.d & (2 << 0);
-                self.regs.set_zero_flag(t & 0xFF == 0);
-                self.regs.set_subtract_flag(false);
-                self.regs.set_half_carry_flag(true);
-                8
-            },
+            0x4A => { self.test_bit(self.regs.d, 1); 8 },
+            // BIT 1,E
+            0x4B => { self.test_bit(self.regs.e, 1); 8 },
+            // BIT 1,H
+            0x4C => { self.test_bit(self.regs.h, 1); 8 },
+            // BIT 1,L
+            0x4D => { self.test_bit(self.regs.l, 1); 8 },
+            // BIT 1, (HL)
+            0x4E => { self.test_bit(self.byte_at_hl(), 1); 16 },
+            // BIT 2,A
+            0x57 => { self.test_bit(self.regs.a, 2); 8 },
+            // BIT 2,B
+            0x50 => { self.test_bit(self.regs.b, 2); 8 },
+            // BIT 2,C
+            0x51 => { self.test_bit(self.regs.c, 2); 8 },
+            // BIT 2,D
+            0x52 => { self.test_bit(self.regs.d, 2); 8 },
+            // BIT 2,E
+            0x53 => { self.test_bit(self.regs.e, 2); 8 },
+            // BIT 2,H
+            0x54 => { self.test_bit(self.regs.h, 2); 8 },
+            // BIT 2,L
+            0x55 => { self.test_bit(self.regs.l, 2); 8 },
+            // BIT 2, (HL)
+            0x56 => { self.test_bit(self.byte_at_hl(), 2); 16 },
+            // BIT 3,A
+            0x5F => { self.test_bit(self.regs.a, 3); 8 },
+            // BIT 3,B
+            0x58 => { self.test_bit(self.regs.b, 3); 8 },
+            // BIT 3,C
+            0x59 => { self.test_bit(self.regs.c, 3); 8 },
+            // BIT 3,D
+            0x5A => { self.test_bit(self.regs.d, 3); 8 },
+            // BIT 3,E
+            0x5B => { self.test_bit(self.regs.e, 3); 8 },
+            // BIT 3,H
+            0x5C => { self.test_bit(self.regs.h, 3); 8 },
+            // BIT 3,L
+            0x5D => { self.test_bit(self.regs.l, 3); 8 },
+            // BIT 3, (HL)
+            0x5E => { self.test_bit(self.byte_at_hl(), 3); 16 },
+            // BIT 4,A
+            0x67 => { self.test_bit(self.regs.a, 4); 8 },
+            // BIT 4,B
+            0x60 => { self.test_bit(self.regs.b, 4); 8 },
+            // BIT 4,C
+            0x61 => { self.test_bit(self.regs.c, 4); 8 },
+            // BIT 4,D
+            0x62 => { self.test_bit(self.regs.d, 4); 8 },
+            // BIT 4,E
+            0x63 => { self.test_bit(self.regs.e, 4); 8 },
+            // BIT 4,H
+            0x64 => { self.test_bit(self.regs.h, 4); 8 },
+            // BIT 4,L
+            0x65 => { self.test_bit(self.regs.l, 4); 8 },
+            // BIT 4, (HL)
+            0x66 => { self.test_bit(self.byte_at_hl(), 4); 16 },
+            // BIT 5,A
+            0x6F => { self.test_bit(self.regs.a, 5); 8 },
+            // BIT 5,B
+            0x68 => { self.test_bit(self.regs.b, 5); 8 },
+            // BIT 5,C
+            0x69 => { self.test_bit(self.regs.c, 5); 8 },
+            // BIT 5,D
+            0x6A => { self.test_bit(self.regs.d, 5); 8 },
+            // BIT 5,E
+            0x6B => { self.test_bit(self.regs.e, 5); 8 },
+            // BIT 5,H
+            0x6C => { self.test_bit(self.regs.h, 5); 8 },
+            // BIT 5,L
+            0x6D => { self.test_bit(self.regs.l, 5); 8 },
+            // BIT 5, (HL)
+            0x6E => { self.test_bit(self.byte_at_hl(), 5); 16 },
+            // BIT 6,A
+            0x77 => { self.test_bit(self.regs.a, 6); 8 },
+            // BIT 6,B
+            0x70 => { self.test_bit(self.regs.b, 6); 8 },
+            // BIT 6,C
+            0x71 => { self.test_bit(self.regs.c, 6); 8 },
+            // BIT 6,D
+            0x72 => { self.test_bit(self.regs.d, 6); 8 },
+            // BIT 6,E
+            0x73 => { self.test_bit(self.regs.e, 6); 8 },
+            // BIT 6,H
+            0x74 => { self.test_bit(self.regs.h, 6); 8 },
+            // BIT 6,L
+            0x75 => { self.test_bit(self.regs.l, 6); 8 },
+            // BIT 6, (HL)
+            0x76 => { self.test_bit(self.byte_at_hl(), 6); 16 },
+            // BIT 7,A
+            0x7F => { self.test_bit(self.regs.a, 7); 8 },
+            // BIT 7,B
+            0x78 => { self.test_bit(self.regs.b, 7); 8 },
+            // BIT 7,C
+            0x79 => { self.test_bit(self.regs.c, 7); 8 },
+            // BIT 7,D
+            0x7A => { self.test_bit(self.regs.d, 7); 8 },
+            // BIT 7,E
+            0x7B => { self.test_bit(self.regs.e, 7); 8 },
+            // BIT 7,H
+            0x7C => { self.test_bit(self.regs.h, 7); 8 },
+            // BIT 7,L
+            0x7D => { self.test_bit(self.regs.l, 7); 8 },
+            // BIT 7, (HL)
+            0x7E => { self.test_bit(self.byte_at_hl(), 7); 16 },
             _ => panic!("Unknown Opcode after CB modifier: ${:02X} at address ${:04X}", cb_opcode, self.regs.pc-1)
         }
     }
@@ -924,6 +1035,12 @@ impl Cpu {
         self.regs.set_half_carry_flag(false);
         self.regs.set_subtract_flag(false);
         new_value
+    }
+
+    fn test_bit(&mut self, value: u8, bit: u8) {
+        self.regs.set_zero_flag(value & (1 << bit) == 0);
+        self.regs.set_subtract_flag(false);
+        self.regs.set_half_carry_flag(true);
     }
 }
 
