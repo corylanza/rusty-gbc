@@ -39,7 +39,7 @@ impl Cpu {
     /// returns number of cycles completed
     pub fn cpu_step(&mut self) -> u8 {
         let opcode = self.next_byte();
-        //println!("executing ${:02X} at address ${:04X}", opcode, self.regs.pc-1);
+        println!("executing ${:02X} at address ${:04X}", opcode, self.regs.pc-1);
 
         match opcode {
             // LD B,n

@@ -27,6 +27,7 @@ const INTERUPTS_ENABLE: u16 = 0xFFFF;
 
 
 pub struct Memory {
+    boot_rom: Vec<u8>,
     cartridge_rom: Rom,
     vram: Ram,
     eram: Ram,
@@ -34,12 +35,14 @@ pub struct Memory {
     oam: Ram,
     io: Ram,
     hram: Ram,
-    interupt_switch: u8
+    interupt_switch: u8,
+    booting: bool
 }
 
 impl Memory {
     pub fn new(filepath: &str) -> Memory {
         Memory {
+            boot_rom: super::boot::load_rom(),
             cartridge_rom: Rom::new(filepath),
             vram: Ram::new(0x8000),
             eram: Ram::new(0x8000),
@@ -47,13 +50,17 @@ impl Memory {
             oam: Ram::new(0xA0),
             io: Ram::new(0x80),
             hram: Ram::new(0x7F),
-            interupt_switch: 0
+            interupt_switch: 0,
+            booting: true
         }
     }
 
     pub fn read(&self, address: u16) -> u8 {
         let output = match address {
-            ROM_START ..= ROM_END => self.cartridge_rom.read(address),
+            ROM_START ..= ROM_END => match self.booting {
+                true => self.boot_rom[address as usize],
+                false => self.cartridge_rom.read(address)
+            },
             VRAM_START ..= VRAM_END => self.vram.read(address - VRAM_START),
             ERAM_START ..= ERAM_END => self.eram.read(address - ERAM_START),
             WRAM_START ..= WRAM_END => self.wram.read(address - WRAM_START),
@@ -77,6 +84,10 @@ impl Memory {
         }
         if address == 0xFF0F {
             println!("interrupt {:02X}", value);
+        }
+        if self.booting && address == 0xFF50 {
+            println!("boot complete");
+            self.booting = false;
         }
         //println!("writing {:02X} to address {:04X}", value, address);
         match address {
