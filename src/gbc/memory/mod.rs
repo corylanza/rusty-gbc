@@ -15,7 +15,7 @@ const ERAM_START: u16 = 0xA000;
 const ERAM_END: u16 = 0xBFFF;
 const WRAM_START: u16 = 0xC000;
 const WRAM_END: u16 = 0xDFFF;
-const ECHO_START: u16 = 0xC000;
+const ECHO_START: u16 = 0xE000;
 const ECHO_END: u16 = 0xFDFF;
 const OAM_START: u16 = 0xFE00;
 const OAM_END: u16 = 0xFE9F;
@@ -57,10 +57,8 @@ impl Memory {
 
     pub fn read(&self, address: u16) -> u8 {
         let output = match address {
-            ROM_START ..= ROM_END => match self.booting {
-                true => self.boot_rom[address as usize],
-                false => self.cartridge_rom.read(address)
-            },
+            0 ..= 0xFF if self.booting => self.boot_rom[address as usize],
+            ROM_START ..= ROM_END => self.cartridge_rom.read(address),
             VRAM_START ..= VRAM_END => self.vram.read(address - VRAM_START),
             ERAM_START ..= ERAM_END => self.eram.read(address - ERAM_START),
             WRAM_START ..= WRAM_END => self.wram.read(address - WRAM_START),
