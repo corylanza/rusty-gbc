@@ -80,12 +80,10 @@ impl Memory {
                 _ => {}
             }
         }
-        if address == 0xFF0F {
-            println!("interrupt {:02X}", value);
-        }
         if self.booting && address == 0xFF50 {
             println!("boot complete");
             self.booting = false;
+            self.cartridge_rom.print_metadata();
         }
         //println!("writing {:02X} to address {:04X}", value, address);
         match address {
@@ -99,37 +97,20 @@ impl Memory {
             IO_START ..= IO_END => self.io.write(address - IO_START, value),
             HRAM_START ..= HRAM_END => self.hram.write(address - HRAM_START, value),
             INTERUPTS_ENABLE => self.interupt_switch = value,
-            // TODO Interupts may need to be writable here
         }
     }
 
-    // pub fn push_u8(&mut self, registers: &mut Registers, value: u8) {
-
-    // }
-
-    // pub fn pop_u8(&mut self, registers: &mut Registers) -> u8 {
-
-    // }
-
-
-    // TODO is the endianess correct here??
     pub fn push_u16(&mut self, regs: &mut Registers, value: u16) {
         let bytes = value.to_be_bytes();
         self.write(regs.sp, bytes[1]);
         self.write(regs.sp - 1, bytes[0]);
         regs.sp = regs.sp.wrapping_sub(2);
-        //println!("push ${:04X}", value);
     }
 
     pub fn pop_u16(&mut self, regs: &mut Registers) -> u16 {
         let res = u16::from_be_bytes([self.read(regs.sp + 1), self.read(regs.sp + 2)]);
         regs.sp = regs.sp.wrapping_add(2);
-        //println!("pop ${:04X}", res);
         res
-    }
-
-    pub fn print_cart_metadata(&self) {
-        self.cartridge_rom.print_metadata();
     }
 }
 

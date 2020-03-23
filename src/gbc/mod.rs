@@ -20,26 +20,72 @@ impl Cpu {
     }
 
     pub fn run(&mut self) {
-        self.mem.print_cart_metadata();
+        let mut cycle_count: u32 = 0;
         loop {
-            self.cpu_step();
+            self.handle_interrupts();
+            let cycles = self.cpu_step() as u32;
+            self.mem.write(0xFF44, 144);
+            // cycle_count = cycle_count.wrapping_add(cycles);
+            // if cycle_count > 456 {
+            //     let ly = (self.mem.read(0xFF44) + 1) % 154;
+            //     cycle_count = 0;
+            //     self.mem.write(0xFF44, ly);
+            //     //println!("LY {:02X}", ly);
+            // }
         }
     }
 
-    pub fn next_byte(&mut self) -> u8 {
+    fn handle_interrupts(&mut self) {
+        // TODO interrupts take 20 cycles to handle (+ 4 if in halt mode)
+        if self.ime {
+            let int_enable = self.mem.read(0xFFFF);
+            let int_request = self.mem.read(0xFF0F);
+            let interrupt = |b: u8| -> bool { int_enable & b > 0 &&  int_request & b > 0 };
+            if interrupt(1) {
+                // v-blank
+                self.handle_interrupt(0x40)
+            }
+            if interrupt(2) {
+                // LCD Stat
+                self.handle_interrupt(0x48)
+            }
+            if interrupt(4) {
+                // Timer
+                self.handle_interrupt(0x50)
+            }
+            if interrupt(8) {
+                // Serial
+                self.handle_interrupt(0x58)
+            }
+            if interrupt(16) {
+                // Joypad
+                self.handle_interrupt(0x60)
+            }
+        }
+    }
+
+    fn handle_interrupt(&mut self, addr: u16) {
+        println!("handled INT {:04X}", addr);
+        self.ime = false;
+        let pc = self.regs.pc;
+        self.mem.push_u16(&mut self.regs, pc);
+        self.regs.pc = addr;
+    }
+
+    fn next_byte(&mut self) -> u8 {
         let byte = self.mem.read(self.regs.pc);
         self.regs.pc = self.regs.pc.wrapping_add(1);
         byte
     }
 
-    pub fn next_u16(&mut self) -> u16 {
+    fn next_u16(&mut self) -> u16 {
         u16::from_le_bytes([self.next_byte(), self.next_byte()])
     }
 
     /// returns number of cycles completed
-    pub fn cpu_step(&mut self) -> u8 {
+    fn cpu_step(&mut self) -> u8 {
         let opcode = self.next_byte();
-        println!("executing ${:02X} at address ${:04X}", opcode, self.regs.pc-1);
+        //println!("executing ${:02X} at address ${:04X}", opcode, self.regs.pc-1);
 
         match opcode {
             // LD B,n
@@ -261,7 +307,7 @@ impl Cpu {
             0x84 => { self.regs.a = self.add(self.regs.a, self.regs.h); 4 },
             // ADd A,L
             0x85 => { self.regs.a = self.add(self.regs.a, self.regs.l); 4 },
-            // ADd A, (HL)
+            // ADD A, (HL)
             0x86 => { self.regs.a = self.add(self.regs.a, self.byte_at_hl()); 8 },
             // ADD A,n
             0xC6 => { let n = self.next_byte(); self.regs.a = self.add(self.regs.a, n); 8 },
