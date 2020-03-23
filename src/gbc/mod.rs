@@ -1,13 +1,15 @@
-mod memory;
+pub mod memory;
 mod boot;
 
 use memory::Memory;
 use memory::Registers;
+use super::debugger::Debugger;
 
 pub struct Cpu {
     mem: Memory,
     regs: Registers,
-    ime: bool // disables interrupts when false overriding IE register
+    ime: bool, // disables interrupts when false overriding IE register
+    debugger: Option<Debugger>
 }
 
 impl Cpu {
@@ -15,8 +17,13 @@ impl Cpu {
         Cpu {
             mem: Memory::new(cartridge_path),
             regs: Registers::new(),
-            ime: true
+            ime: true,
+            debugger: None
         }
+    }
+
+    pub fn attatch_debugger(&mut self, debug: Debugger) {
+        self.debugger = Some(debug);
     }
 
     pub fn run(&mut self) {
@@ -72,6 +79,15 @@ impl Cpu {
         self.regs.pc = addr;
     }
 
+    fn check_breakpoint(&mut self) {
+        match &self.debugger {
+            Some(debug) if debug.breakpoints.contains(&self.regs.pc) => {
+                debug.break_at(&self.regs.pc, &self.mem, &self.regs);
+            },
+            _ => {}
+        };
+    }
+
     fn next_byte(&mut self) -> u8 {
         let byte = self.mem.read(self.regs.pc);
         self.regs.pc = self.regs.pc.wrapping_add(1);
@@ -84,7 +100,12 @@ impl Cpu {
 
     /// returns number of cycles completed
     fn cpu_step(&mut self) -> u8 {
+        if self.debugger.is_some() {
+            self.check_breakpoint();
+        }
+
         let opcode = self.next_byte();
+
         //println!("executing ${:02X} at address ${:04X}", opcode, self.regs.pc-1);
 
         match opcode {
