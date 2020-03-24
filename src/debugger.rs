@@ -24,8 +24,11 @@ impl Debugger {
     }
 
     pub fn break_at(&self, addr: &u16, mem: &Memory, regs: &Registers) {
-        println!("Hit breakpoint {:04X}\n A: {:02X}, B: {:02X}, C: {:02X}, D: {:02X}, E: {:02X}, SP: {:04X},", 
-            addr, regs.a, regs.b, regs.c, regs.d, regs.e, regs.sp);
+        println!("Hit breakpoint {:04X}\nA: {:02X}, B: {:02X}, C: {:02X}, D: {:02X}, E: {:02X}, F: {:02X}, H: {:02X}, L: {:02X}, SP: {:04X}", 
+            addr, regs.a, regs.b, regs.c, regs.d, regs.e, regs.f, regs.h, regs.l, regs.sp);
+        println!("flags: Z: {}, H: {}, C: {}, N: {}", 
+            regs.zero_flag(), regs.half_carry_flag(), regs.carry_flag(), regs.subtract_flag());
+        println!("op {:02X} {:02X} {:02X}", mem.read(regs.pc), mem.read(regs.pc+1), mem.read(regs.pc+2));
         let line: String = read!("{}\n");
     }
 }

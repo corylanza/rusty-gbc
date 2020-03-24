@@ -77,7 +77,7 @@ impl Memory {
         if address == 0xFF02 && value == 0x81 {
             match str::from_utf8(&[self.read(0xFF01)]) {
                 Ok(s) => print!("{}", s),
-                _ => {}
+                _ => { }
             }
         }
         if self.booting && address == 0xFF50 {
@@ -93,7 +93,7 @@ impl Memory {
             WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),
             ECHO_START ..= ECHO_END => self.wram.write(address - ECHO_START, value),
             OAM_START ..= OAM_END => self.oam.write(address - OAM_START, value),
-            0xFEA0 ..= 0xFEFF => { /* Unusable */},
+            0xFEA0 ..= 0xFEFF => { /* Unusable */} ,
             IO_START ..= IO_END => self.io.write(address - IO_START, value),
             HRAM_START ..= HRAM_END => self.hram.write(address - HRAM_START, value),
             INTERUPTS_ENABLE => self.interupt_switch = value,
@@ -101,14 +101,14 @@ impl Memory {
     }
 
     pub fn push_u16(&mut self, regs: &mut Registers, value: u16) {
-        let bytes = value.to_be_bytes();
+        let bytes = value.to_le_bytes();
         self.write(regs.sp, bytes[1]);
         self.write(regs.sp - 1, bytes[0]);
         regs.sp = regs.sp.wrapping_sub(2);
     }
 
     pub fn pop_u16(&mut self, regs: &mut Registers) -> u16 {
-        let res = u16::from_be_bytes([self.read(regs.sp + 1), self.read(regs.sp + 2)]);
+        let res = u16::from_le_bytes([self.read(regs.sp + 1), self.read(regs.sp + 2)]);
         regs.sp = regs.sp.wrapping_add(2);
         res
     }
@@ -122,6 +122,7 @@ mod tests {
     #[test]
     fn test_stack_alloc() {
         let mut regs = Registers::new();
+        regs.sp = 0xFFFE;
         let mut mem = Memory::new("./roms/tetris.gbc");
         mem.push_u16(&mut regs, 0x1234);
         assert_eq!(mem.pop_u16(&mut regs), 0x1234);

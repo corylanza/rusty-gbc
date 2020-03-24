@@ -1113,7 +1113,7 @@ impl Cpu {
 
 /// Converts u8 to i8 and adds to u16
 fn add_signed_u8_to_u16(unsigned: u16, signed: u8) -> u16 {
-    ((unsigned as i32) + i8::from_be_bytes([signed]) as i32) as u16
+    ((unsigned as i32) + i8::from_le_bytes([signed]) as i32) as u16
 }
 
 fn half_carry_addition(first: u8, second: u8) -> bool {
