@@ -1,4 +1,5 @@
 pub mod memory;
+pub mod gpu;
 mod boot;
 
 use memory::Memory;
@@ -32,13 +33,11 @@ impl Cpu {
             self.handle_interrupts();
             let cycles = self.cpu_step() as u32;
             self.mem.write(0xFF44, 144);
-            // cycle_count = cycle_count.wrapping_add(cycles);
-            // if cycle_count > 456 {
-            //     let ly = (self.mem.read(0xFF44) + 1) % 154;
-            //     cycle_count = 0;
-            //     self.mem.write(0xFF44, ly);
-            //     //println!("LY {:02X}", ly);
-            // }
+            cycle_count = cycle_count.wrapping_add(cycles);
+            if cycle_count > (4_000_000 / 60) {
+                self.mem.gpu.render();
+                cycle_count = 0;
+            }
         }
     }
 
@@ -253,7 +252,7 @@ impl Cpu {
             0x1A => { self.regs.a = self.mem.read(self.regs.get_de()); 8 },
             // LD A, (nn)
             0xFA => { let nn = self.next_u16(); self.regs.a = self.mem.read(nn); 16 },
-            // LD A, #
+            // LD A, n
             0x3E  => { self.regs.a = self.next_byte(); 8},
             // LD (BC),A
             0x02 => { self.mem.write(self.regs.get_bc(), self.regs.a); 8 },
@@ -335,19 +334,19 @@ impl Cpu {
             // ADC A,A
             0x8F => { self.regs.a = self.add_carry(self.regs.a, self.regs.a); 4 },
             // ADC A,B
-            0x88 => { self.regs.a = self.add(self.regs.a, self.regs.b); 4 },
+            0x88 => { self.regs.a = self.add_carry(self.regs.a, self.regs.b); 4 },
             // ADC A,C
-            0x89 => { self.regs.a = self.add(self.regs.a, self.regs.c); 4 },
+            0x89 => { self.regs.a = self.add_carry(self.regs.a, self.regs.c); 4 },
             // ADC A,D
-            0x8A => { self.regs.a = self.add(self.regs.a, self.regs.d); 4 },
+            0x8A => { self.regs.a = self.add_carry(self.regs.a, self.regs.d); 4 },
             // ADC A,E
-            0x8B => { self.regs.a = self.add(self.regs.a, self.regs.e); 4 },
+            0x8B => { self.regs.a = self.add_carry(self.regs.a, self.regs.e); 4 },
             // ADC A,H
-            0x8C => { self.regs.a = self.add(self.regs.a, self.regs.h); 4 },
+            0x8C => { self.regs.a = self.add_carry(self.regs.a, self.regs.h); 4 },
             // ADC A,L
-            0x8D => { self.regs.a = self.add(self.regs.a, self.regs.l); 4 },
+            0x8D => { self.regs.a = self.add_carry(self.regs.a, self.regs.l); 4 },
             // ADC A, (HL)
-            0x8E => { self.regs.a = self.add(self.regs.a, self.byte_at_hl()); 8 },
+            0x8E => { self.regs.a = self.add_carry(self.regs.a, self.byte_at_hl()); 8 },
             // ADC A,n
             0xCE => { let n = self.next_byte(); self.regs.a = self.add(self.regs.a, n); 8 },
             // SUB A

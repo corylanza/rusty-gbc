@@ -6,6 +6,7 @@ pub use registers::Registers;
 use rom::Rom;
 use ram::Ram;
 use std::str;
+use super::gpu::Gpu;
 
 const ROM_START: u16 = 0;
 const ROM_END: u16 = 0x7FFF;
@@ -29,7 +30,7 @@ const INTERUPTS_ENABLE: u16 = 0xFFFF;
 pub struct Memory {
     boot_rom: Vec<u8>,
     cartridge_rom: Rom,
-    vram: Ram,
+    pub gpu: Gpu,
     eram: Ram,
     wram: Ram,
     oam: Ram,
@@ -44,7 +45,7 @@ impl Memory {
         Memory {
             boot_rom: super::boot::load_rom(),
             cartridge_rom: Rom::new(filepath),
-            vram: Ram::new(0x8000),
+            gpu: Gpu::new(),
             eram: Ram::new(0x8000),
             wram: Ram::new(0x2000),
             oam: Ram::new(0xA0),
@@ -59,7 +60,7 @@ impl Memory {
         let output = match address {
             0 ..= 0xFF if self.booting => self.boot_rom[address as usize],
             ROM_START ..= ROM_END => self.cartridge_rom.read(address),
-            VRAM_START ..= VRAM_END => self.vram.read(address - VRAM_START),
+            VRAM_START ..= VRAM_END => self.gpu.read_from_vram(address - VRAM_START),
             ERAM_START ..= ERAM_END => self.eram.read(address - ERAM_START),
             WRAM_START ..= WRAM_END => self.wram.read(address - WRAM_START),
             ECHO_START ..= ECHO_END => self.wram.read(address - ECHO_START),
@@ -88,7 +89,7 @@ impl Memory {
         //println!("writing {:02X} to address {:04X}", value, address);
         match address {
             ROM_START ..= ROM_END => {},//println!("writing {:02X} to ROM address {:04X}", value, address),
-            VRAM_START ..= VRAM_END => self.vram.write(address - VRAM_START, value),
+            VRAM_START ..= VRAM_END => self.gpu.write_to_vram(address - VRAM_START, value),
             ERAM_START ..= ERAM_END => self.eram.write(address - ERAM_START, value),
             WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),
             ECHO_START ..= ECHO_END => self.wram.write(address - ECHO_START, value),
