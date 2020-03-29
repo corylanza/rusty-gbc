@@ -65,10 +65,11 @@ impl Gpu {
     fn render_background(&mut self) {
         self.background_canvas.set_draw_color(Color::RGB(0xFF, 0xFF, 0xFF));
         self.background_canvas.clear();
-        for tile_x in 0..32 {
-            for tile_y in 0..32 {
-                let tile = self.tile_set[self.vram[(tile_y * 32) + tile_x + 0x1800] as usize];
-                render_tile(&mut self.tileset_canvas, tile, tile_x, tile_y);
+        for tile_y in 0..32 {
+            for tile_x in 0..32 {
+                let tile_id = self.vram[(tile_y * 32) + tile_x + 0x1800] as usize;
+                let tile = self.tile_set[tile_id];
+                render_tile(&mut self.background_canvas, tile, tile_x, tile_y);
             }
         }
         let mut event_pump = self.sdl_context.event_pump().unwrap();

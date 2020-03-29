@@ -34,7 +34,7 @@ impl Cpu {
             let cycles = self.cpu_step() as u32;
             self.mem.write(0xFF44, 144);
             cycle_count = cycle_count.wrapping_add(cycles);
-            if cycle_count > (4_000_000 / 60) {
+            if cycle_count > (4_000_000) {
                 self.mem.gpu.render();
                 cycle_count = 0;
             }
