@@ -13,6 +13,14 @@ pub struct Gpu {
     background_canvas: WindowCanvas,
     vram: [u8; 0x8000],
     tile_set: [Tile; 384],
+    pub lcd_control: u8,
+    pub lcdc_status: u8,
+    pub scy: u8,
+    pub scx: u8,
+    pub ly: u8,
+    pub lyc: u8,
+    pub wy: u8,
+    pub wx: u8
 }
 
 type Tile = [[Color; 8]; 8];
@@ -53,7 +61,15 @@ impl Gpu {
             tileset_canvas: tiles_window.into_canvas().present_vsync().build().unwrap(),
             background_canvas: bg_window.into_canvas().present_vsync().build().unwrap(),
             vram: [0; 0x8000],
-            tile_set: [empty_tile(); 384]
+            tile_set: [empty_tile(); 384],
+            lcd_control: 0,
+            lcdc_status: 0,
+            scy: 0,
+            scx: 0,
+            ly: 0,
+            lyc: 0,
+            wy: 0,
+            wx: 0
         }
     }
 

@@ -2,6 +2,7 @@ pub mod memory;
 pub mod gpu;
 mod boot;
 
+use std::time::Instant;
 use memory::Memory;
 use memory::Registers;
 use super::debugger::Debugger;
@@ -29,13 +30,29 @@ impl Cpu {
 
     pub fn run(&mut self) {
         let mut cycle_count: u32 = 0;
+        let mut cycles_since_render: u32 = 0;
+        let start = Instant::now();
+        let mut total_time: u64 = 0;
         loop {
             self.handle_interrupts();
             let cycles = self.cpu_step() as u32;
-            self.mem.write(0xFF44, 144);
             cycle_count = cycle_count.wrapping_add(cycles);
-            if cycle_count > (4_000_000) {
+            let elapsed = start.elapsed().as_millis();
+            let elapsed_seconds = (elapsed / 1000) as u64;
+
+            self.mem.write(0xFF44, (cycles_since_render % 153) as u8);
+
+            if cycles_since_render > 70224 {
+                cycles_since_render = 0;
                 self.mem.gpu.render();
+                self.mem.write(0xFF44, 144);
+            } else {
+                cycles_since_render += cycles;
+            }
+            if elapsed_seconds > total_time {
+                println!("{} cycles in {} second", cycle_count, elapsed_seconds - total_time);
+                println!("{:04X} pc", self.regs.pc);
+                total_time = elapsed_seconds;
                 cycle_count = 0;
             }
         }
