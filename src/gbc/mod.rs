@@ -166,8 +166,8 @@ impl Cpu {
             0x4D => { self.regs.c = self.regs.l; 4 },
             // LD C,(HL)
             0x4E => { self.regs.c = self.byte_at_hl(); 8 },
-            // LD D,A
-            0x4F => { self.regs.d = self.regs.a; 4 },
+            // LD C,A
+            0x4f => { self.regs.c = self.regs.a; 4 },
             // LD D,B
             0x50 => { self.regs.d = self.regs.b; 4 },
             // LD D,C
@@ -1038,8 +1038,8 @@ impl Cpu {
     }
 
     fn rotate_left_carry(&mut self, value: u8) -> u8 {
+        self.regs.set_carry_flag(value & 0b10000000 == 0b10000000);
         let new_value = (value << 1) | if self.regs.carry_flag() { 0b00000001 } else { 0 };
-        self.regs.set_carry_flag(value & 0b10000000 > 0);
         self.regs.set_zero_flag(new_value == 0);
         self.regs.set_half_carry_flag(false);
         self.regs.set_subtract_flag(false);
@@ -1047,9 +1047,8 @@ impl Cpu {
     }
 
     fn rotate_left(&mut self, value: u8) -> u8 {
-        // by setting carry flag first this is used to rotate
-        self.regs.set_carry_flag(value & 0b10000000 > 0);
-        let new_value = value << 1 | if self.regs.carry_flag() { 0b00000001 } else { 0 };
+        let new_value = (value << 1) | if self.regs.carry_flag() { 0b00000001 } else { 0 };
+        self.regs.set_carry_flag(value & 0b10000000 == 0b10000000);
         self.regs.set_zero_flag(new_value == 0);
         self.regs.set_half_carry_flag(false);
         self.regs.set_subtract_flag(false);
@@ -1057,8 +1056,8 @@ impl Cpu {
     }
 
     fn rotate_right_carry(&mut self, value: u8) -> u8 {
-        let new_value = (value >> 1) | if self.regs.carry_flag() { 0b10000000 } else { 0 };
         self.regs.set_carry_flag(value & 0b00000001 > 0);
+        let new_value = (value >> 1) | if self.regs.carry_flag() { 0b10000000 } else { 0 };
         self.regs.set_zero_flag(new_value == 0);
         self.regs.set_half_carry_flag(false);
         self.regs.set_subtract_flag(false);
@@ -1067,8 +1066,9 @@ impl Cpu {
 
     fn rotate_right(&mut self, value: u8) -> u8 {
         // by setting carry flag first this is used to rotate
-        self.regs.set_carry_flag(value & 0b00000001 > 0);
+        
         let new_value = value >> 1 | if self.regs.carry_flag() { 0b10000000 } else { 0 };
+        self.regs.set_carry_flag(value & 0b00000001 > 0);
         self.regs.set_zero_flag(new_value == 0);
         self.regs.set_half_carry_flag(false);
         self.regs.set_subtract_flag(false);
