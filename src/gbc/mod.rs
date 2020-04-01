@@ -125,6 +125,11 @@ impl Cpu {
         //println!("executing ${:02X} at address ${:04X}", opcode, self.regs.pc-1);
 
         match opcode {
+            // HALT
+            0x76 => { 
+                self.mem.gpu.render();
+                loop {}
+            }
             // LD B,n
             0x06 => { self.regs.b = self.next_byte(); 8 },
             // LD C,n
@@ -1070,6 +1075,8 @@ impl Cpu {
             0x7D => { self.test_bit(self.regs.l, 7); 8 },
             // BIT 7, (HL)
             0x7E => { self.test_bit(self.byte_at_hl(), 7); 16 },
+            // RESET 0,A
+            0x87 => { self.regs.a = self.reset_bit(self.regs.a, 0); 8 },
             _ => panic!("Unknown Opcode after CB modifier: ${:02X} at address ${:04X}", cb_opcode, self.regs.pc-1)
         }
     }
@@ -1146,6 +1153,14 @@ impl Cpu {
         self.regs.set_half_carry_flag(true);
     }
 
+    fn set_bit(&mut self, value: u8, bit: u8) -> u8 {
+        value | (1 << bit)
+    }
+
+    fn reset_bit(&mut self, value: u8, bit: u8) -> u8 {
+        value & !(1 << bit)
+    }
+
     fn swap_nibles(&mut self, value: u8) -> u8 {
         let upper = value >> 4;
         let lower = value << 4 ;
@@ -1189,5 +1204,15 @@ mod tests {
         assert_eq!(0b11110000, cpu.swap_nibles(0b00001111));
         assert_eq!(0b00110101, cpu.swap_nibles(0b01010011));
         assert_eq!(0b10101010, cpu.swap_nibles(0b10101010));
+    }
+
+    #[test]
+    fn test_bit() {
+        let mut cpu = Cpu::new("./roms/tetris.gbc");
+        assert_eq!(1, cpu.set_bit(0, 0));
+        assert_eq!(0b10000000, cpu.set_bit(0, 7));
+        assert_eq!(0b00111100, cpu.set_bit(0b00101100, 4));
+        assert_eq!(0b10101001, cpu.reset_bit(0b10111001, 4));
+        assert_eq!(0, cpu.reset_bit(1, 0));
     }
 }
