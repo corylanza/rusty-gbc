@@ -83,9 +83,8 @@ impl Gpu {
         self.background_canvas.clear();
         for tile_y in 0..32 {
             for tile_x in 0..32 {
-                let tile_id = self.vram[(tile_y * 32) + tile_x + 0x1800] as usize;
-                let tile = self.tile_set[tile_id];
-                render_tile(&mut self.background_canvas, tile, tile_x, tile_y);
+                let tile = self.get_tile_at((tile_y * 32) + tile_x);
+                render_tile(&mut self.background_canvas, tile, tile_x as usize, tile_y as usize);
             }
         }
         let mut event_pump = self.sdl_context.event_pump().unwrap();
@@ -119,6 +118,16 @@ impl Gpu {
             }
         }
         self.tileset_canvas.present();
+    }
+
+    fn get_tile_at(&self, address: u16) -> Tile {
+        let tile_id = self.vram[(address + 0x1800) as usize];
+        if self.lcd_control & 0b00010000 > 0 {
+            self.tile_set[tile_id as usize]
+        } else {
+            let address = (0x100 as i16) + i8::from_le_bytes([tile_id]) as i16;
+            self.tile_set[address as usize]
+        }
     }
 
     pub fn write_to_vram(&mut self, address: u16, value: u8) {
