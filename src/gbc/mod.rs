@@ -313,7 +313,7 @@ impl Cpu {
                 //12
             },
             // LD (nn), SP
-            0x08 => { self.regs.sp = self.next_u16(); 20 },
+            0x08 => { panic!("needs fixing"); 20},//{ self.regs.sp = self.next_u16(); 20 },
             // PUSH AF
             0xF5 => { let af = self.regs.get_af(); self.mem.push_u16(&mut self.regs, af); 16 },
             // PUSH BC
@@ -782,6 +782,26 @@ impl Cpu {
     fn cb_opcode_step(&mut self) -> u8 {
         let cb_opcode = self.next_byte();
         match cb_opcode {
+            // SWAP A
+            0x37 => { self.regs.a = self.swap_nibles(self.regs.a); 8 },
+            // SWAP B
+            0x30 => { self.regs.b = self.swap_nibles(self.regs.b); 8 },
+            // SWAP C
+            0x31 => { self.regs.c = self.swap_nibles(self.regs.c); 8 },
+            // SWAP D
+            0x32 => { self.regs.d = self.swap_nibles(self.regs.d); 8 },
+            // SWAP E
+            0x33 => { self.regs.e = self.swap_nibles(self.regs.e); 8 },
+            // SWAP H
+            0x34 => { self.regs.h = self.swap_nibles(self.regs.h); 8 },
+            // SWAP L
+            0x35 => { self.regs.l = self.swap_nibles(self.regs.l); 8 },
+            // SWAP (HL)
+            0x36 => { 
+                let value = self.swap_nibles(self.byte_at_hl());
+                self.set_byte_at_hl(value); 
+                16 
+            },
             // RLC A
             0x07 => { self.regs.a = self.rotate_left_carry(self.regs.a); 8 },
             // RLC B
@@ -1125,6 +1145,17 @@ impl Cpu {
         self.regs.set_subtract_flag(false);
         self.regs.set_half_carry_flag(true);
     }
+
+    fn swap_nibles(&mut self, value: u8) -> u8 {
+        let upper = value >> 4;
+        let lower = value << 4 ;
+        let new_value = upper | lower;
+        self.regs.set_zero_flag(new_value == 0);
+        self.regs.set_carry_flag(false);
+        self.regs.set_half_carry_flag(false);
+        self.regs.set_subtract_flag(false);
+        new_value
+    }
 }
 
 /// Converts u8 to i8 and adds to u16
@@ -1147,3 +1178,16 @@ fn half_carry_addition_u16(first: u16, second: u16) -> bool {
 // fn half_carry_subtraction_16(first: u8, second: u8) -> bool {
 //     ((first & 0x00FF) as i32 - (second & 0x00FF) as i32) < 0
 // }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_swap() {
+        let mut cpu = Cpu::new("./roms/tetris.gbc");
+        assert_eq!(0b11110000, cpu.swap_nibles(0b00001111));
+        assert_eq!(0b00110101, cpu.swap_nibles(0b01010011));
+        assert_eq!(0b10101010, cpu.swap_nibles(0b10101010));
+    }
+}
