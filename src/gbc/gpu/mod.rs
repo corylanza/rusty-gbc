@@ -7,6 +7,14 @@ use sdl2::rect::Rect;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
+const SCREEN_WIDTH: u8 = 160;
+const SCREEN_HEIGHT: u8 = 144;
+
+const H_BLANK_MODE: u8 = 0;
+const V_BLANK_MODE: u8 = 1;
+const OAM_SEARCH_MODE: u8 = 2;
+const LCD_TRANSFER_MODE: u8 = 3;
+
 pub struct Gpu {
     sdl_context: Sdl,
     tileset_canvas: WindowCanvas,
@@ -72,6 +80,43 @@ impl Gpu {
             wx: 0
         }
     }
+
+    fn set_lcdc_mode(&mut self, mode: u8) {
+        self.lcdc_status = self.lcdc_status & 0b11111100 | mode;
+    }
+
+    pub fn render_scanline(&mut self) -> u64 {
+        
+        match self.ly {
+            0..=143 => {
+                // OAM search 20 * cycles
+                // Pixel Transfer 43 * 4 cycles
+                // H - blank 51 * 4 cycles
+                self.set_lcdc_mode(H_BLANK_MODE);
+                self.ly = (self.ly + 1) % 153;
+                51 * 4
+            },
+            144..=153 => {
+                
+                if self.ly == 144 {
+                    self.render();
+                }
+                self.set_lcdc_mode(V_BLANK_MODE);
+                self.ly = (self.ly + 1) % 153;
+                114 * 4
+            },
+            _ => {
+                self.ly = 0;
+                0
+            }
+        }
+    }
+
+    // pub fn draw_scanline(&mut self, scanline: u8) {
+    //     for x in 0..SCREEN_WIDTH {
+    //         self.get_tile_at(scanline / 8 * 32 + )
+    //     }
+    // }
 
     pub fn render(&mut self) {
         self.render_tileset();
