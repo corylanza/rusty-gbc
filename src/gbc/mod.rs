@@ -3,6 +3,7 @@ pub mod gpu;
 mod boot;
 
 use std::time::Instant;
+use std::{thread, time};
 use memory::Memory;
 use memory::Registers;
 use super::debugger::Debugger;
@@ -29,31 +30,26 @@ impl Cpu {
     }
 
     pub fn run(&mut self) {
-        let mut cycle_count: u32 = 0;
-        let mut cycles_since_render: u32 = 0;
-        let start = Instant::now();
-        let mut total_time: u64 = 0;
+        let mut cycle_count: u64 = 0;
         loop {
-            self.handle_interrupts();
-            let cycles = self.cpu_step() as u32;
-            cycle_count = cycle_count.wrapping_add(cycles);
-            let elapsed = start.elapsed().as_millis();
-            let elapsed_seconds = (elapsed / 1000) as u64;
-
-            self.mem.write(0xFF44, (cycles_since_render % 153) as u8);
-
-            if cycles_since_render > 70224 {
-                cycles_since_render = 0;
-                self.mem.gpu.render();
-                self.mem.write(0xFF44, 144);
-            } else {
-                cycles_since_render += cycles;
+            let mut remaining_cycles: u64 = self.mem.gpu.render_scanline();
+            
+            let start = Instant::now();
+            loop {
+                self.handle_interrupts();
+                let cycles = self.cpu_step() as u64;
+                if remaining_cycles < cycles {
+                    break
+                } else {
+                    remaining_cycles -= cycles;
+                }
             }
-            if elapsed_seconds > total_time {
-                println!("{} cycles in {} second", cycle_count, elapsed_seconds - total_time);
-                println!("{:04X} pc", self.regs.pc);
-                total_time = elapsed_seconds;
+            
+            cycle_count += 17556;
+            if cycle_count > 4048576 {
                 cycle_count = 0;
+                let elapsed = start.elapsed().as_millis() as u64;
+                //thread::sleep(time::Duration::from_millis(1000 - elapsed));
             }
         }
     }
@@ -126,7 +122,7 @@ impl Cpu {
 
         match opcode {
             // HALT
-            0x76 => { 
+            0x76 | 0x10 => { 
                 self.mem.gpu.render();
                 loop {}
             }
@@ -661,7 +657,7 @@ impl Cpu {
     /// param: `reg_val` - The value from a register from 
     /// which to logically or with register a
     fn logical_or(&mut self, reg_val: u8) {
-        self.regs.a = if self.regs.a > 0 || reg_val > 0 { 1 } else { 0 };
+        self.regs.a |= reg_val;
         self.regs.set_zero_flag(self.regs.a == 0);
         self.regs.set_subtract_flag(false);
         self.regs.set_half_carry_flag(false);
@@ -671,7 +667,7 @@ impl Cpu {
     /// param: `reg_val` - The value from a register from 
     /// which to logically xor with register a
     fn logical_xor(&mut self, reg_val: u8) {
-        self.regs.a = if (self.regs.a > 0 && reg_val == 0) || (self.regs.a == 0 && reg_val > 0) { 1 } else { 0 };
+        self.regs.a ^= reg_val;
         self.regs.set_zero_flag(self.regs.a == 0);
         self.regs.set_subtract_flag(false);
         self.regs.set_half_carry_flag(false);
@@ -681,7 +677,7 @@ impl Cpu {
     /// param: `reg_val` - The value from a register from 
     /// which to logically and with register a
     fn logical_and(&mut self, reg_val: u8) {
-        self.regs.a = if self.regs.a > 0 && reg_val > 0 { 1 } else { 0 };
+        self.regs.a &= reg_val;
         self.regs.set_zero_flag(self.regs.a == 0);
         self.regs.set_half_carry_flag(true);
         self.regs.set_subtract_flag(false);
