@@ -37,7 +37,7 @@ pub struct Memory {
     io: Ram,
     hram: Ram,
     interupt_switch: u8,
-    booting: bool
+    pub booting: bool
 }
 
 impl Memory {
@@ -115,6 +115,12 @@ impl Memory {
             HRAM_START ..= HRAM_END => self.hram.write(address - HRAM_START, value),
             INTERUPTS_ENABLE => self.interupt_switch = value,
         }
+    }
+
+    pub fn write_u16(&mut self, address: u16, value: u16) {
+        let bytes = value.to_le_bytes();
+        self.write(address, bytes[1]);
+        self.write(address + 1, bytes[0]);
     }
 
     pub fn push_u16(&mut self, regs: &mut Registers, value: u16) {

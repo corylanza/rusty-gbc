@@ -2,8 +2,8 @@ pub mod memory;
 pub mod gpu;
 mod boot;
 
-use std::time::Instant;
-use std::{thread, time};
+//use std::time::Instant;
+//use std::{thread, time};
 use memory::Memory;
 use memory::Registers;
 use super::debugger::Debugger;
@@ -33,8 +33,8 @@ impl Cpu {
         let mut cycle_count: u64 = 0;
         loop {
             let mut remaining_cycles: u64 = self.mem.gpu.render_scanline();
-            
-            let start = Instant::now();
+            //self.mem.write(0xFF44, 0x90);
+            //let start = Instant::now();
             loop {
                 self.handle_interrupts();
                 let cycles = self.cpu_step() as u64;
@@ -48,7 +48,7 @@ impl Cpu {
             cycle_count += 17556;
             if cycle_count > 4048576 {
                 cycle_count = 0;
-                let elapsed = start.elapsed().as_millis() as u64;
+                //let elapsed = start.elapsed().as_millis() as u64;
                 //thread::sleep(time::Duration::from_millis(1000 - elapsed));
             }
         }
@@ -118,12 +118,14 @@ impl Cpu {
 
         let opcode = self.next_byte();
 
-        //println!("executing ${:02X} at address ${:04X}", opcode, self.regs.pc-1);
+        if !self.mem.booting {
+            //println!("executing ${:02X} at address ${:04X}", opcode, self.regs.pc-1);
+        }
 
         match opcode {
             // HALT
             0x76 | 0x10 => { 
-                self.mem.gpu.render();
+                self.mem.gpu.render_scanline();
                 loop {}
             }
             // LD B,n
@@ -308,13 +310,12 @@ impl Cpu {
             0xF9 => { self.regs.sp = self.regs.get_hl(); 8 },
             // LDHL SP, n
             0xF8 => { 
-                panic!("nooooo");
-                //let n = self.next_byte(); 
-                //self.registers.set_hl(self.memory.read(n));
-                //12
+                let n = self.add_signed_u8_to_sp();
+                self.regs.set_hl(n);
+                12
             },
             // LD (nn), SP
-            0x08 => { panic!("needs fixing"); 20},//{ self.regs.sp = self.next_u16(); 20 },
+            0x08 => { let nn = self.next_u16(); self.mem.write_u16(nn, self.regs.sp); 20 },
             // PUSH AF
             0xF5 => { let af = self.regs.get_af(); self.mem.push_u16(&mut self.regs, af); 16 },
             // PUSH BC
@@ -533,24 +534,25 @@ impl Cpu {
                 8
             },
             // ADD SP,n
+            0xE8 => { self.regs.sp = self.add_signed_u8_to_sp(); 16 }
             // INC (16 bit)
             // INC BC
-            0x03 => { self.regs.set_bc(self.regs.get_bc() + 1); 8 },
+            0x03 => { self.regs.set_bc(self.regs.get_bc().wrapping_add(1)); 8 },
             // INC DE
-            0x13 => { self.regs.set_de(self.regs.get_de() + 1); 8 },
+            0x13 => { self.regs.set_de(self.regs.get_de().wrapping_add(1)); 8 },
             // INC HL
-            0x23 => { self.regs.set_hl(self.regs.get_hl() + 1); 8 },
+            0x23 => { self.regs.set_hl(self.regs.get_hl().wrapping_add(1)); 8 },
             // INC SP
-            0x33 => { self.regs.sp += 1; 8 },
+            0x33 => { self.regs.sp = self.regs.sp.wrapping_add(1); 8 },
             // DEC (16 bit)
             // DEC BC
-            0x0B => { self.regs.set_bc(self.regs.get_bc() - 1); 8 },
+            0x0B => { self.regs.set_bc(self.regs.get_bc().wrapping_sub(1)); 8 },
             // DEC DE
-            0x1B => { self.regs.set_de(self.regs.get_de() - 1); 8 },
+            0x1B => { self.regs.set_de(self.regs.get_de().wrapping_sub(1)); 8 },
             // DEC HL
-            0x2B => { self.regs.set_hl(self.regs.get_hl() - 1); 8 },
+            0x2B => { self.regs.set_hl(self.regs.get_hl().wrapping_sub(1)); 8 },
             // DEC SP
-            0x3B => { self.regs.sp -= 1; 8 },
+            0x3B => { self.regs.sp = self.regs.sp.wrapping_sub(1); 8 },
             // DAA
             // CPL
             0x2F => {
@@ -649,6 +651,7 @@ impl Cpu {
             // RET C
             0xD8 => { self.return_if(self.regs.carry_flag()); 8 },
             // RETI
+            0xD9 => { self.return_if(true); self.ime = true; 8 },
             // CB ops
             0xCB => { self.cb_opcode_step() },
             _ => panic!("Unknown Opcode: ${:02X} at address ${:04X}", opcode, self.regs.pc-1)
@@ -753,6 +756,15 @@ impl Cpu {
         let new_val = first.wrapping_sub(second);
         self.regs.set_zero_flag(new_val == 0);
         new_val
+    }
+
+    fn add_signed_u8_to_sp(&mut self) -> u16 {
+        let n = self.next_byte() as i8 as i16 as u16;
+        self.regs.set_zero_flag(false);
+        self.regs.set_subtract_flag(false);
+        self.regs.set_half_carry_flag((self.regs.sp & 0x000F) + (n & 0x000F) > 0x000F);
+        self.regs.set_carry_flag((self.regs.sp & 0x00FF) + (n & 0x00FF) > 0x00FF);
+        self.regs.sp.wrapping_add(n)
     }
 
     fn call_if(&mut self, cond: bool) {

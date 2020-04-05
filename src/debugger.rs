@@ -30,6 +30,9 @@ impl Debugger {
             regs.zero_flag(), regs.half_carry_flag(), regs.carry_flag(), regs.subtract_flag());
         println!("op {:02X} {:02X} {:02X}", mem.read(regs.pc), mem.read(regs.pc+1), mem.read(regs.pc+2));
         let line: String = read!("{}\n");
+        for _part in line.split_whitespace() {
+
+        }
     }
 }
 
