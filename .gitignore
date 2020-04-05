@@ -12,6 +12,7 @@ Cargo.lock
 
 #Added by cargo
 
+/.vscode
 /target
 /roms
 /logs
