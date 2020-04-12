@@ -7,8 +7,8 @@ use sdl2::rect::Rect;
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 
-// const SCREEN_WIDTH: u8 = 160;
-// const SCREEN_HEIGHT: u8 = 144;
+const SCREEN_WIDTH: u8 = 160;
+const SCREEN_HEIGHT: u8 = 144;
 
 const H_BLANK_MODE: u8 = 0;
 const V_BLANK_MODE: u8 = 1;
@@ -129,6 +129,8 @@ impl Gpu {
                 render_tile(&mut self.background_canvas, tile, tile_x as usize, tile_y as usize);
             }
         }
+        self.background_canvas.set_draw_color(Color::RGB(0, 0, 0));
+        self.background_canvas.draw_rect(Rect::new(self.scx as i32 * SCALE as i32, self.scy as i32 * SCALE as i32, SCREEN_WIDTH as u32 * SCALE as u32, SCREEN_HEIGHT as u32 * SCALE as u32)).unwrap();
         let mut event_pump = self.sdl_context.event_pump().unwrap();
         for event in event_pump.poll_iter() {
             match event {

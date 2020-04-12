@@ -2,8 +2,8 @@ pub mod memory;
 pub mod gpu;
 mod boot;
 
-//use std::time::Instant;
-//use std::{thread, time};
+use std::time::Instant;
+use std::{thread, time};
 use memory::Memory;
 use memory::Registers;
 use super::debugger::Debugger;
@@ -32,7 +32,7 @@ impl Cpu {
     pub fn run(&mut self) {
         let mut cycle_count: u64 = 0;
         loop {
-            let mut remaining_cycles: u64 = self.mem.gpu.render_scanline() * 200;
+            let mut remaining_cycles: u64 = self.mem.gpu.render_scanline() * 80;
             //self.mem.write(0xFF44, 0x90);
             //let start = Instant::now();
             loop {
@@ -105,12 +105,14 @@ impl Cpu {
 
     fn next_byte(&mut self) -> u8 {
         let byte = self.mem.read(self.regs.pc);
-        self.regs.pc = self.regs.pc.wrapping_add(1);
+        self.regs.pc += 1;
         byte
     }
 
     fn next_u16(&mut self) -> u16 {
-        u16::from_le_bytes([self.next_byte(), self.next_byte()])
+        let val = self.mem.read_u16(self.regs.pc);
+        self.regs.pc += 2;
+        val
     }
 
     /// returns number of cycles completed
@@ -1095,7 +1097,7 @@ impl Cpu {
 
     fn rotate_left_carry(&mut self, value: u8) -> u8 {
         self.regs.set_carry_flag(value & 0b10000000 == 0b10000000);
-        let new_value = (value << 1) | if self.regs.carry_flag() { 0b00000001 } else { 0 };
+        let new_value = (value << 1) | if self.regs.carry_flag() { 1 } else { 0 };
         self.regs.set_zero_flag(new_value == 0);
         self.regs.set_half_carry_flag(false);
         self.regs.set_subtract_flag(false);
@@ -1103,7 +1105,7 @@ impl Cpu {
     }
 
     fn rotate_left(&mut self, value: u8) -> u8 {
-        let new_value = (value << 1) | if self.regs.carry_flag() { 0b00000001 } else { 0 };
+        let new_value = (value << 1) | if self.regs.carry_flag() { 1 } else { 0 };
         self.regs.set_carry_flag(value & 0b10000000 == 0b10000000);
         self.regs.set_zero_flag(new_value == 0);
         self.regs.set_half_carry_flag(false);
@@ -1174,14 +1176,11 @@ impl Cpu {
     }
 
     fn swap_nibles(&mut self, value: u8) -> u8 {
-        let upper = value >> 4;
-        let lower = value << 4 ;
-        let new_value = upper | lower;
-        self.regs.set_zero_flag(new_value == 0);
+        self.regs.set_zero_flag(value == 0);
         self.regs.set_carry_flag(false);
         self.regs.set_half_carry_flag(false);
         self.regs.set_subtract_flag(false);
-        new_value
+        (value >> 4) | (value << 4)
     }
 }
 

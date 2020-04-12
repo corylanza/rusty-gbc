@@ -82,6 +82,10 @@ impl Memory {
         output
     }
 
+    pub fn read_u16(&self, address: u16) -> u16 {
+        u16::from_le_bytes([self.read(address), self.read(address + 1)])
+    }
+
     pub fn write(&mut self, address: u16, value: u8) {
         if address == 0xFF02 && value == 0x81 {
             match str::from_utf8(&[self.read(0xFF01)]) {
@@ -119,19 +123,17 @@ impl Memory {
 
     pub fn write_u16(&mut self, address: u16, value: u16) {
         let bytes = value.to_le_bytes();
-        self.write(address, bytes[1]);
-        self.write(address + 1, bytes[0]);
+        self.write(address, bytes[0]);
+        self.write(address + 1, bytes[1]);
     }
 
     pub fn push_u16(&mut self, regs: &mut Registers, value: u16) {
-        let bytes = value.to_le_bytes();
-        self.write(regs.sp, bytes[1]);
-        self.write(regs.sp - 1, bytes[0]);
         regs.sp = regs.sp.wrapping_sub(2);
+        self.write_u16(regs.sp, value);
     }
 
     pub fn pop_u16(&mut self, regs: &mut Registers) -> u16 {
-        let res = u16::from_le_bytes([self.read(regs.sp + 1), self.read(regs.sp + 2)]);
+        let res = self.read_u16(regs.sp);
         regs.sp = regs.sp.wrapping_add(2);
         res
     }
