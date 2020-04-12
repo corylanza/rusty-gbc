@@ -32,7 +32,7 @@ impl Cpu {
     pub fn run(&mut self) {
         let mut cycle_count: u64 = 0;
         loop {
-            let mut remaining_cycles: u64 = self.mem.gpu.render_scanline();
+            let mut remaining_cycles: u64 = self.mem.gpu.render_scanline() * 200;
             //self.mem.write(0xFF44, 0x90);
             //let start = Instant::now();
             loop {
@@ -59,10 +59,13 @@ impl Cpu {
         if self.ime {
             let int_enable = self.mem.read(0xFFFF);
             let int_request = self.mem.read(0xFF0F);
-            let interrupt = |b: u8| -> bool { int_enable & b > 0 &&  int_request & b > 0 };
+            let interrupt = |b: u8| -> bool { 
+                int_enable & b > 0 &&  int_request & b > 0
+            };
             if interrupt(1) {
                 // v-blank
-                self.handle_interrupt(0x40)
+                self.mem.write(0xFF0F, int_request & !1);
+                self.handle_interrupt(0x40);
             }
             if interrupt(2) {
                 // LCD Stat
@@ -84,7 +87,7 @@ impl Cpu {
     }
 
     fn handle_interrupt(&mut self, addr: u16) {
-        println!("handled INT {:04X}", addr);
+        //println!("handled INT {:04X}", addr);
         self.ime = false;
         let pc = self.regs.pc;
         self.mem.push_u16(&mut self.regs, pc);
@@ -554,6 +557,7 @@ impl Cpu {
             // DEC SP
             0x3B => { self.regs.sp = self.regs.sp.wrapping_sub(1); 8 },
             // DAA
+            0x27 => { panic!("DAA not implemented"); 4 },
             // CPL
             0x2F => {
                 self.regs.a = !self.regs.a; 
