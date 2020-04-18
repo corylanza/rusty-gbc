@@ -32,7 +32,7 @@ impl Cpu {
     pub fn run(&mut self) {
         let mut cycle_count: u64 = 0;
         loop {
-            let mut remaining_cycles: u64 = self.mem.gpu.render_scanline() * 80;
+            let mut remaining_cycles: u64 = self.mem.gpu.render_scanline() * 100;
             //self.mem.write(0xFF44, 0x90);
             //let start = Instant::now();
             loop {
@@ -339,64 +339,82 @@ impl Cpu {
             // POP HL
             0xE1 => { let nn = self.mem.pop_u16(&mut self.regs); self.regs.set_hl(nn); 12 },
             // ADD A,A
-            0x87 => { self.regs.a = self.add(self.regs.a, self.regs.a); 4 },
+            0x87 => { self.add(self.regs.a, false); 4 },
             // ADD A,B
-            0x80 => { self.regs.a = self.add(self.regs.a, self.regs.b); 4 },
+            0x80 => { self.add(self.regs.b, false); 4 },
             // ADD A,C
-            0x81 => { self.regs.a = self.add(self.regs.a, self.regs.c); 4 },
+            0x81 => { self.add(self.regs.c, false); 4 },
             // ADD A,D
-            0x82 => { self.regs.a = self.add(self.regs.a, self.regs.d); 4 },
+            0x82 => { self.add(self.regs.d, false); 4 },
             // ADD A,E
-            0x83 => { self.regs.a = self.add(self.regs.a, self.regs.e); 4 },
+            0x83 => { self.add(self.regs.e, false); 4 },
             // ADD A,H
-            0x84 => { self.regs.a = self.add(self.regs.a, self.regs.h); 4 },
+            0x84 => { self.add(self.regs.h, false); 4 },
             // ADd A,L
-            0x85 => { self.regs.a = self.add(self.regs.a, self.regs.l); 4 },
+            0x85 => { self.add(self.regs.l, false); 4 },
             // ADD A, (HL)
-            0x86 => { self.regs.a = self.add(self.regs.a, self.byte_at_hl()); 8 },
+            0x86 => { self.add(self.byte_at_hl(), false); 8 },
             // ADD A,n
-            0xC6 => { let n = self.next_byte(); self.regs.a = self.add(self.regs.a, n); 8 },
+            0xC6 => { let n = self.next_byte(); self.add(n, false); 8 },
             // ADC A,A
-            0x8F => { self.regs.a = self.add_carry(self.regs.a, self.regs.a); 4 },
+            0x8F => { self.add(self.regs.a, true); 4 },
             // ADC A,B
-            0x88 => { self.regs.a = self.add_carry(self.regs.a, self.regs.b); 4 },
+            0x88 => { self.add(self.regs.b, true); 4 },
             // ADC A,C
-            0x89 => { self.regs.a = self.add_carry(self.regs.a, self.regs.c); 4 },
+            0x89 => { self.add(self.regs.c, true); 4 },
             // ADC A,D
-            0x8A => { self.regs.a = self.add_carry(self.regs.a, self.regs.d); 4 },
+            0x8A => { self.add(self.regs.d, true); 4 },
             // ADC A,E
-            0x8B => { self.regs.a = self.add_carry(self.regs.a, self.regs.e); 4 },
+            0x8B => { self.add(self.regs.e, true); 4 },
             // ADC A,H
-            0x8C => { self.regs.a = self.add_carry(self.regs.a, self.regs.h); 4 },
+            0x8C => { self.add(self.regs.h, true); 4 },
             // ADC A,L
-            0x8D => { self.regs.a = self.add_carry(self.regs.a, self.regs.l); 4 },
+            0x8D => { self.add(self.regs.l, true); 4 },
             // ADC A, (HL)
-            0x8E => { self.regs.a = self.add_carry(self.regs.a, self.byte_at_hl()); 8 },
+            0x8E => { self.add(self.byte_at_hl(), true); 8 },
             // ADC A,n
-            0xCE => { let n = self.next_byte(); self.regs.a = self.add(self.regs.a, n); 8 },
+            0xCE => { let n = self.next_byte(); self.add(n, true); 8 },
             // SUB A
-            0x97 => { self.regs.a = self.subtract(self.regs.a, self.regs.a); 4 },
+            0x97 => { self.subtract(self.regs.a, false); 4 },
             // SUB B
-            0x90 => { self.regs.b = self.subtract(self.regs.a, self.regs.b); 4 },
+            0x90 => { self.subtract(self.regs.b, false); 4 },
             // SUB C
-            0x91 => { self.regs.c = self.subtract(self.regs.a, self.regs.c); 4 },
+            0x91 => { self.subtract(self.regs.c, false); 4 },
             // SUB D
-            0x92 => { self.regs.d = self.subtract(self.regs.a, self.regs.d); 4 },
+            0x92 => { self.subtract(self.regs.d, false); 4 },
             // SUB E
-            0x93 => { self.regs.e = self.subtract(self.regs.a, self.regs.e); 4 },
+            0x93 => { self.subtract(self.regs.e, false); 4 },
             // SUB H
-            0x94 => { self.regs.h = self.subtract(self.regs.a, self.regs.h); 4 },
+            0x94 => { self.subtract(self.regs.h, false); 4 },
             // SUB L
-            0x95 => { self.regs.l = self.subtract(self.regs.a, self.regs.l); 4 },
+            0x95 => { self.subtract(self.regs.l, false); 4 },
             // SUB (HL)
-            0x96 => { self.regs.a = self.subtract(self.regs.a, self.byte_at_hl()); 8 },
+            0x96 => { self.subtract(self.byte_at_hl(), false); 8 },
             // SUB n
             0xD6 => { 
                 let n = self.next_byte(); 
-                self.regs.a = self.subtract(self.regs.a, n);
+                self.subtract(n, false);
                 8
             },
             // SBC
+            // SBC A
+            0x9F => { self.subtract(self.regs.a, true); 4 },
+            // SBC B
+            0x98 => { self.subtract(self.regs.b, true); 4 },
+            // SBC C
+            0x99 => { self.subtract(self.regs.c, true); 4 },
+            // SBC D
+            0x9A => { self.subtract(self.regs.d, true); 4 },
+            // SBC E
+            0x9B => { self.subtract(self.regs.e, true); 4 },
+            // SBC H
+            0x9C => { self.subtract(self.regs.h, true); 4 },
+            // SBC L
+            0x9D => { self.subtract(self.regs.l, true); 4 },
+            // SBC (HL)
+            0x9E => { self.subtract(self.byte_at_hl(), true); 8 },
+            // SBC A,n
+            0xDE => { let n = self.next_byte(); self.subtract(n, true); 8 },
             // AND
             // AND A
             0xA7 => { self.logical_and(self.regs.a); 4 }
@@ -718,41 +736,23 @@ impl Cpu {
         self.regs.pc = n as u16;
     }
 
-    /// Compare register A with n, A - n subtraction
-    /// results are thrown away and flags are set
-    fn compare(&mut self, n: u8) {
-        let a = self.regs.a;
-        self.regs.set_zero_flag(a == n);
-        self.regs.set_carry_flag(a < n);
-        self.regs.set_half_carry_flag(half_carry_subtraction(a, n));
-        self.regs.set_subtract_flag(true);
-    }
-
-    fn add(&mut self, first: u8, second: u8) -> u8 {
-        self.regs.set_half_carry_flag(half_carry_addition(first, second));
-        self.regs.set_carry_flag((first as u16) + (second as u16) > 0xFF);
-        self.regs.set_subtract_flag(false);
-        let new_val = first.wrapping_add(second);
-        self.regs.set_zero_flag(new_val == 0);
-        new_val
-    }
-
     fn inc(&mut self, first: u8) -> u8 {
-        self.regs.set_half_carry_flag(half_carry_addition(first, 1));
+        self.regs.set_half_carry_flag(half_carry_addition(first, 1, 0));
         self.regs.set_subtract_flag(false);
         let new_val = first.wrapping_add(1);
         self.regs.set_zero_flag(new_val == 0);
         new_val
     }
 
-    fn add_carry(&mut self, first: u8, second: u8) -> u8 {
-        let second = second + if self.regs.carry_flag() { 1 } else { 0 };
-        self.regs.set_half_carry_flag(half_carry_addition(first, second));
-        self.regs.set_carry_flag((first as u16) + (second as u16) > 0xFF);
+    fn add(&mut self, n: u8, carry: bool) {
+        let c = if carry && self.regs.carry_flag() { 1 } else { 0 };
+        let a = self.regs.a;
+        let new_val = a.wrapping_add(n).wrapping_add(c);
+        self.regs.set_half_carry_flag(half_carry_addition(a, n, c));
+        self.regs.set_carry_flag((a as u16) + (n as u16) + (c as u16) > 0xFF);
         self.regs.set_subtract_flag(false);
-        let new_val = first.wrapping_add(second);
         self.regs.set_zero_flag(new_val == 0);
-        new_val
+        self.regs.a = new_val;
     }
 
     fn add_u16(&mut self, first: u16, second: u16) -> u16 {
@@ -763,18 +763,32 @@ impl Cpu {
         new_val
     }
 
-    fn subtract(&mut self, first: u8, second: u8) -> u8 {
-        self.regs.set_half_carry_flag(half_carry_subtraction(first, second));
-        self.regs.set_carry_flag((first as i16) - (second as i16) > 0x00);
+    fn subtract(&mut self, n: u8, carry: bool) {
+        let a = self.regs.a;
+        let c = if carry && self.regs.carry_flag() { 1 } else { 0 };
+        let new_val = a.wrapping_sub(n).wrapping_sub(c);
+        self.regs.set_half_carry_flag(half_carry_subtraction(a, n, c));
+        self.regs.set_carry_flag((a as u16) < (n as u16) + (c as u16));
         self.regs.set_subtract_flag(true);
-        let new_val = first.wrapping_sub(second);
         self.regs.set_zero_flag(new_val == 0);
-        new_val
+        self.regs.a = new_val;
+    }
+
+    /// Compare register A with n, A - n subtraction
+    /// results are thrown away and flags are set
+    fn compare(&mut self, n: u8) {
+        let a = self.regs.a;
+        let c = if false && self.regs.carry_flag() { 1 } else { 0 };
+        self.regs.set_half_carry_flag(half_carry_subtraction(a, n, c));
+        self.regs.set_carry_flag((a as u16) < (n as u16) + (c as u16));
+        self.regs.set_subtract_flag(true);
+        let new_val = a.wrapping_sub(n);
+        self.regs.set_zero_flag(new_val == 0);
     }
 
     
     fn dec(&mut self, first: u8) -> u8 {
-        self.regs.set_half_carry_flag(half_carry_subtraction(first, 1));
+        self.regs.set_half_carry_flag(half_carry_subtraction(first, 1, 0));
         self.regs.set_subtract_flag(true);
         let new_val = first.wrapping_sub(1);
         self.regs.set_zero_flag(new_val == 0);
@@ -1206,12 +1220,12 @@ fn add_signed_u8_to_u16(unsigned: u16, signed: u8) -> u16 {
     ((unsigned as i32) + i8::from_le_bytes([signed]) as i32) as u16
 }
 
-fn half_carry_addition(first: u8, second: u8) -> bool {
-    (((first & 0x0F) + (second & 0x0F)) & 0x10) == 0x10
+fn half_carry_addition(first: u8, second: u8, carry: u8) -> bool {
+    (first & 0xF) + (second & 0xF) + carry > 0xF
 }
 
-fn half_carry_subtraction(first: u8, second: u8) -> bool {
-    ((first & 0x0F) as i16 - (second & 0x0F) as i16) < 0
+fn half_carry_subtraction(first: u8, second: u8, carry: u8) -> bool {
+    (first & 0x0F) < (second & 0x0F) + carry
 }
 
 fn half_carry_addition_u16(first: u16, second: u16) -> bool {
