@@ -2,8 +2,8 @@ pub mod memory;
 pub mod gpu;
 mod boot;
 
-use std::time::Instant;
-use std::{thread, time};
+// use std::time::Instant;
+// use std::{thread, time};
 use memory::Memory;
 use memory::Registers;
 use super::debugger::Debugger;
@@ -578,7 +578,6 @@ impl Cpu {
             // DEC SP
             0x3B => { self.regs.sp = self.regs.sp.wrapping_sub(1); 8 },
             // DAA
-            0x27 => { panic!("DAA not implemented"); 4 },
             // CPL
             0x2F => {
                 self.regs.a = !self.regs.a; 
@@ -1120,9 +1119,326 @@ impl Cpu {
             0x7D => { self.test_bit(self.regs.l, 7); 8 },
             // BIT 7, (HL)
             0x7E => { self.test_bit(self.byte_at_hl(), 7); 16 },
-            // RESET 0,A
+            // RES 0,A
             0x87 => { self.regs.a = self.reset_bit(self.regs.a, 0); 8 },
-            _ => panic!("Unknown Opcode after CB modifier: ${:02X} at address ${:04X}", cb_opcode, self.regs.pc-1)
+            // RES 0,B
+            0x80 => { self.regs.b = self.reset_bit(self.regs.b, 0); 8 },
+            // RES 0,C
+            0x81 => { self.regs.c = self.reset_bit(self.regs.c, 0); 8 },
+            // RES 0,D
+            0x82 => { self.regs.d = self.reset_bit(self.regs.d, 0); 8 },
+            // RES 0,E
+            0x83 => { self.regs.e = self.reset_bit(self.regs.e, 0); 8 },
+            // RES 0,H
+            0x84 => { self.regs.h = self.reset_bit(self.regs.h, 0); 8 },
+            // RES 0,L
+            0x85 => { self.regs.l = self.reset_bit(self.regs.l, 0); 8 },
+            // RES 0, (HL)
+            0x86 => {
+                let hl = self.reset_bit(self.byte_at_hl(), 0);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // RES 1,A
+            0x8F => { self.regs.a = self.reset_bit(self.regs.a, 1); 8 },
+            // RES 1,B
+            0x88 => { self.regs.b = self.reset_bit(self.regs.b, 1); 8 },
+            // RES 1,C
+            0x89 => { self.regs.c = self.reset_bit(self.regs.c, 1); 8 },
+            // RES 1,D
+            0x8A => { self.regs.d = self.reset_bit(self.regs.d, 1); 8 },
+            // RES 1,E
+            0x8B => { self.regs.e = self.reset_bit(self.regs.e, 1); 8 },
+            // RES 1,H
+            0x8C => { self.regs.h = self.reset_bit(self.regs.h, 1); 8 },
+            // RES 1,L
+            0x8D => { self.regs.l = self.reset_bit(self.regs.l, 1); 8 },
+            // RES 1, (HL)
+            0x8E => {
+                let hl = self.reset_bit(self.byte_at_hl(), 1);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // RES 2,A
+            0x97 => { self.regs.a = self.reset_bit(self.regs.a, 2); 8 },
+            // RES 2,B
+            0x90 => { self.regs.b = self.reset_bit(self.regs.b, 2); 8 },
+            // RES 2,C
+            0x91 => { self.regs.c = self.reset_bit(self.regs.c, 2); 8 },
+            // RES 2,D
+            0x92 => { self.regs.d = self.reset_bit(self.regs.d, 2); 8 },
+            // RES 2,E
+            0x93 => { self.regs.e = self.reset_bit(self.regs.e, 2); 8 },
+            // RES 2,H
+            0x94 => { self.regs.h = self.reset_bit(self.regs.h, 2); 8 },
+            // RES 2,L
+            0x95 => { self.regs.l = self.reset_bit(self.regs.l, 2); 8 },
+            // RES 2, (HL)
+            0x96 => {
+                let hl = self.reset_bit(self.byte_at_hl(), 2);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // RES 3,A
+            0x9F => { self.regs.a = self.reset_bit(self.regs.a, 3); 8 },
+            // RES 3,B
+            0x98 => { self.regs.b = self.reset_bit(self.regs.b, 3); 8 },
+            // RES 3,C
+            0x99 => { self.regs.c = self.reset_bit(self.regs.c, 3); 8 },
+            // RES 3,D
+            0x9A => { self.regs.d = self.reset_bit(self.regs.d, 3); 8 },
+            // RES 3,E
+            0x9B => { self.regs.e = self.reset_bit(self.regs.e, 3); 8 },
+            // RES 3,H
+            0x9C => { self.regs.h = self.reset_bit(self.regs.h, 3); 8 },
+            // RES 3,L
+            0x9D => { self.regs.l = self.reset_bit(self.regs.l, 3); 8 },
+            // RES 3, (HL)
+            0x9E => {
+                let hl = self.reset_bit(self.byte_at_hl(), 3);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // RES 4,A
+            0xA7 => { self.regs.a = self.reset_bit(self.regs.a, 4); 8 },
+            // RES 4,B
+            0xA0 => { self.regs.b = self.reset_bit(self.regs.b, 4); 8 },
+            // RES 4,C
+            0xA1 => { self.regs.c = self.reset_bit(self.regs.c, 4); 8 },
+            // RES 4,D
+            0xA2 => { self.regs.d = self.reset_bit(self.regs.d, 4); 8 },
+            // RES 4,E
+            0xA3 => { self.regs.e = self.reset_bit(self.regs.e, 4); 8 },
+            // RES 4,H
+            0xA4 => { self.regs.h = self.reset_bit(self.regs.h, 4); 8 },
+            // RES 4,L
+            0xA5 => { self.regs.l = self.reset_bit(self.regs.l, 4); 8 },
+            // RES 4, (HL)
+            0xA6 => {
+                let hl = self.reset_bit(self.byte_at_hl(), 4);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // RES 5,A
+            0xAF => { self.regs.a = self.reset_bit(self.regs.a, 5); 8 },
+            // RES 5,B
+            0xA8 => { self.regs.b = self.reset_bit(self.regs.b, 5); 8 },
+            // RES 5,C
+            0xA9 => { self.regs.c = self.reset_bit(self.regs.c, 5); 8 },
+            // RES 5,D
+            0xAA => { self.regs.d = self.reset_bit(self.regs.d, 5); 8 },
+            // RES 5,E
+            0xAB => { self.regs.e = self.reset_bit(self.regs.e, 5); 8 },
+            // RES 5,H
+            0xAC => { self.regs.h = self.reset_bit(self.regs.h, 5); 8 },
+            // RES 5,L
+            0xAD => { self.regs.l = self.reset_bit(self.regs.l, 5); 8 },
+            // RES 5, (HL)
+            0xAE => { 
+                let hl = self.reset_bit(self.byte_at_hl(), 5);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // RES 6,A
+            0xB7 => { self.regs.a = self.reset_bit(self.regs.a, 6); 8 },
+            // RES 6,B
+            0xB0 => { self.regs.b = self.reset_bit(self.regs.b, 6); 8 },
+            // RES 6,C
+            0xB1 => { self.regs.c = self.reset_bit(self.regs.c, 6); 8 },
+            // RES 6,D
+            0xB2 => { self.regs.d = self.reset_bit(self.regs.d, 6); 8 },
+            // RES 6,E
+            0xB3 => { self.regs.e = self.reset_bit(self.regs.e, 6); 8 },
+            // RES 6,H
+            0xB4 => { self.regs.h = self.reset_bit(self.regs.h, 6); 8 },
+            // RES 6,L
+            0xB5 => { self.regs.l = self.reset_bit(self.regs.l, 6); 8 },
+            // RES 6, (HL)
+            0xB6 => {
+                let hl = self.reset_bit(self.byte_at_hl(), 6);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // RES 7,A
+            0xBF => { self.regs.a = self.reset_bit(self.regs.a, 7); 8 },
+            // RES 7,B
+            0xB8 => { self.regs.b = self.reset_bit(self.regs.b, 7); 8 },
+            // RES 7,C
+            0xB9 => { self.regs.c = self.reset_bit(self.regs.c, 7); 8 },
+            // RES 7,D
+            0xBA => { self.regs.d = self.reset_bit(self.regs.d, 7); 8 },
+            // RES 7,E
+            0xBB => { self.regs.e = self.reset_bit(self.regs.e, 7); 8 },
+            // RES 7,H
+            0xBC => { self.regs.h = self.reset_bit(self.regs.h, 7); 8 },
+            // RES 7,L
+            0xBD => { self.regs.l = self.reset_bit(self.regs.l, 7); 8 },
+            // RES 7, (HL)
+            0xBE => { 
+                let hl = self.reset_bit(self.byte_at_hl(), 7);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // SET 0,A
+            0xC7 => { self.regs.a = self.set_bit(self.regs.a, 0); 8 },
+            // SET 0,B
+            0xC0 => { self.regs.b = self.set_bit(self.regs.b, 0); 8 },
+            // SET 0,C
+            0xC1 => { self.regs.c = self.set_bit(self.regs.c, 0); 8 },
+            // SET 0,D
+            0xC2 => { self.regs.d = self.set_bit(self.regs.d, 0); 8 },
+            // SET 0,E
+            0xC3 => { self.regs.e = self.set_bit(self.regs.e, 0); 8 },
+            // SET 0,H
+            0xC4 => { self.regs.h = self.set_bit(self.regs.h, 0); 8 },
+            // SET 0,L
+            0xC5 => { self.regs.l = self.set_bit(self.regs.l, 0); 8 },
+            // SET 0, (HL)
+            0xC6 => {
+                let hl = self.set_bit(self.byte_at_hl(), 0);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // SET 1,A
+            0xCF => { self.regs.a = self.set_bit(self.regs.a, 1); 8 },
+            // SET 1,B
+            0xC8 => { self.regs.b = self.set_bit(self.regs.b, 1); 8 },
+            // SET 1,C
+            0xC9 => { self.regs.c = self.set_bit(self.regs.c, 1); 8 },
+            // SET 1,D
+            0xCA => { self.regs.d = self.set_bit(self.regs.d, 1); 8 },
+            // SET 1,E
+            0xCB => { self.regs.e = self.set_bit(self.regs.e, 1); 8 },
+            // SET 1,H
+            0xCC => { self.regs.h = self.set_bit(self.regs.h, 1); 8 },
+            // SET 1,L
+            0xCD => { self.regs.l = self.set_bit(self.regs.l, 1); 8 },
+            // SET 1, (HL)
+            0xCE => {
+                let hl = self.set_bit(self.byte_at_hl(), 1);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // SET 2,A
+            0xD7 => { self.regs.a = self.set_bit(self.regs.a, 2); 8 },
+            // SET 2,B
+            0xD0 => { self.regs.b = self.set_bit(self.regs.b, 2); 8 },
+            // SET 2,C
+            0xD1 => { self.regs.c = self.set_bit(self.regs.c, 2); 8 },
+            // SET 2,D
+            0xD2 => { self.regs.d = self.set_bit(self.regs.d, 2); 8 },
+            // SET 2,E
+            0xD3 => { self.regs.e = self.set_bit(self.regs.e, 2); 8 },
+            // SET 2,H
+            0xD4 => { self.regs.h = self.set_bit(self.regs.h, 2); 8 },
+            // SET 2,L
+            0xD5 => { self.regs.l = self.set_bit(self.regs.l, 2); 8 },
+            // SET 2, (HL)
+            0xD6 => {
+                let hl = self.set_bit(self.byte_at_hl(), 2);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // SET 3,A
+            0xDF => { self.regs.a = self.set_bit(self.regs.a, 3); 8 },
+            // SET 3,B
+            0xD8 => { self.regs.b = self.set_bit(self.regs.b, 3); 8 },
+            // SET 3,C
+            0xD9 => { self.regs.c = self.set_bit(self.regs.c, 3); 8 },
+            // SET 3,D
+            0xDA => { self.regs.d = self.set_bit(self.regs.d, 3); 8 },
+            // SET 3,E
+            0xDB => { self.regs.e = self.set_bit(self.regs.e, 3); 8 },
+            // SET 3,H
+            0xDC => { self.regs.h = self.set_bit(self.regs.h, 3); 8 },
+            // SET 3,L
+            0xDD => { self.regs.l = self.set_bit(self.regs.l, 3); 8 },
+            // SET 3, (HL)
+            0xDE => {
+                let hl = self.set_bit(self.byte_at_hl(), 3);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // SET 4,A
+            0xE7 => { self.regs.a = self.set_bit(self.regs.a, 4); 8 },
+            // SET 4,B
+            0xE0 => { self.regs.b = self.set_bit(self.regs.b, 4); 8 },
+            // SET 4,C
+            0xE1 => { self.regs.c = self.set_bit(self.regs.c, 4); 8 },
+            // SET 4,D
+            0xE2 => { self.regs.d = self.set_bit(self.regs.d, 4); 8 },
+            // SET 4,E
+            0xE3 => { self.regs.e = self.set_bit(self.regs.e, 4); 8 },
+            // SET 4,H
+            0xE4 => { self.regs.h = self.set_bit(self.regs.h, 4); 8 },
+            // SET 4,L
+            0xE5 => { self.regs.l = self.set_bit(self.regs.l, 4); 8 },
+            // SET 4, (HL)
+            0xE6 => {
+                let hl = self.set_bit(self.byte_at_hl(), 4);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // SET 5,A
+            0xEF => { self.regs.a = self.set_bit(self.regs.a, 5); 8 },
+            // SET 5,B
+            0xE8 => { self.regs.b = self.set_bit(self.regs.b, 5); 8 },
+            // SET 5,C
+            0xE9 => { self.regs.c = self.set_bit(self.regs.c, 5); 8 },
+            // SET 5,D
+            0xEA => { self.regs.d = self.set_bit(self.regs.d, 5); 8 },
+            // SET 5,E
+            0xEB => { self.regs.e = self.set_bit(self.regs.e, 5); 8 },
+            // SET 5,H
+            0xEC => { self.regs.h = self.set_bit(self.regs.h, 5); 8 },
+            // SET 5,L
+            0xED => { self.regs.l = self.set_bit(self.regs.l, 5); 8 },
+            // SET 5, (HL)
+            0xEE => { 
+                let hl = self.set_bit(self.byte_at_hl(), 5);
+                self.set_byte_at_hl(hl);
+                16 
+            },
+            // SET 6,A
+            0xF7 => { self.regs.a = self.set_bit(self.regs.a, 6); 8 },
+            // SET 6,B
+            0xF0 => { self.regs.b = self.set_bit(self.regs.b, 6); 8 },
+            // SET 6,C
+            0xF1 => { self.regs.c = self.set_bit(self.regs.c, 6); 8 },
+            // SET 6,D
+            0xF2 => { self.regs.d = self.set_bit(self.regs.d, 6); 8 },
+            // SET 6,E
+            0xF3 => { self.regs.e = self.set_bit(self.regs.e, 6); 8 },
+            // SET 6,H
+            0xF4 => { self.regs.h = self.set_bit(self.regs.h, 6); 8 },
+            // SET 6,L
+            0xF5 => { self.regs.l = self.set_bit(self.regs.l, 6); 8 },
+            // SET 6, (HL)
+            0xF6 => {
+                let hl = self.set_bit(self.byte_at_hl(), 6);
+                self.set_byte_at_hl(hl);
+                16 
+		    },
+            // SET 7,A
+            0xFF => { self.regs.a = self.set_bit(self.regs.a, 7); 8 },
+            // SET 7,B
+            0xF8 => { self.regs.b = self.set_bit(self.regs.b, 7); 8 },
+            // SET 7,C
+            0xF9 => { self.regs.c = self.set_bit(self.regs.c, 7); 8 },
+            // SET 7,D
+            0xFA => { self.regs.d = self.set_bit(self.regs.d, 7); 8 },
+            // SET 7,E
+            0xFB => { self.regs.e = self.set_bit(self.regs.e, 7); 8 },
+            // SET 7,H
+            0xFC => { self.regs.h = self.set_bit(self.regs.h, 7); 8 },
+            // SET 7,L
+            0xFD => { self.regs.l = self.set_bit(self.regs.l, 7); 8 },
+            // SET 7, (HL)
+            0xFE => { 
+                let hl = self.set_bit(self.byte_at_hl(), 7);
+                self.set_byte_at_hl(hl);
+                16 
+			}
         }
     }
 
