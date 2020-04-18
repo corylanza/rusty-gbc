@@ -578,6 +578,7 @@ impl Cpu {
             // DEC SP
             0x3B => { self.regs.sp = self.regs.sp.wrapping_sub(1); 8 },
             // DAA
+            0x27 => { 4 },
             // CPL
             0x2F => {
                 self.regs.a = !self.regs.a; 
@@ -608,13 +609,13 @@ impl Cpu {
             // EI
             0xFB => { self.ime = true; 4 }
             // RLCA
-            0x07 => { self.regs.a = self.rotate_left_carry(self.regs.a); 4 },
+            0x07 => { self.regs.a = self.rotate_left_carry(self.regs.a); self.regs.set_zero_flag(false); 4 },
             // RLA
-            0x17 => { self.regs.a = self.rotate_left(self.regs.a); 4 },
+            0x17 => { self.regs.a = self.rotate_left(self.regs.a); self.regs.set_zero_flag(false); 4 },
             // RRCA
-            0x0F => { self.regs.a = self.rotate_right_carry(self.regs.a); 4 },
+            0x0F => { self.regs.a = self.rotate_right_carry(self.regs.a); self.regs.set_zero_flag(false); 4 },
             // RRA
-            0x1F => { self.regs.a = self.rotate_right(self.regs.a); 4 },
+            0x1F => { self.regs.a = self.rotate_right(self.regs.a); self.regs.set_zero_flag(false); 4 },
             // JP
             // JP nn
             0xC3 => { self.jump_to_nn_if(true); 12 },
@@ -1443,7 +1444,7 @@ impl Cpu {
     }
 
     fn rotate_left_carry(&mut self, value: u8) -> u8 {
-        self.regs.set_carry_flag(value & 0b10000000 == 0b10000000);
+        self.regs.set_carry_flag(value & 0b10000000 > 0);
         let new_value = (value << 1) | if self.regs.carry_flag() { 1 } else { 0 };
         self.regs.set_zero_flag(new_value == 0);
         self.regs.set_half_carry_flag(false);
@@ -1453,7 +1454,7 @@ impl Cpu {
 
     fn rotate_left(&mut self, value: u8) -> u8 {
         let new_value = (value << 1) | if self.regs.carry_flag() { 1 } else { 0 };
-        self.regs.set_carry_flag(value & 0b10000000 == 0b10000000);
+        self.regs.set_carry_flag(value & 0b10000000 > 0);
         self.regs.set_zero_flag(new_value == 0);
         self.regs.set_half_carry_flag(false);
         self.regs.set_subtract_flag(false);
@@ -1501,7 +1502,7 @@ impl Cpu {
     fn shift_right(&mut self, value: u8) -> u8 {
         // set carry first such that bit 7 remains same in next step
         self.regs.set_carry_flag(value & 0b00000001 > 0);
-        let new_value = (value >> 1) | if self.regs.carry_flag() { 0b10000000 } else { 0 };
+        let new_value = (value >> 1) | (value & 0b10000000);
         self.regs.set_zero_flag(new_value == 0);
         self.regs.set_half_carry_flag(false);
         self.regs.set_subtract_flag(false);
