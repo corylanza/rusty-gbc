@@ -757,10 +757,9 @@ impl Cpu {
 
     fn add_u16(&mut self, first: u16, second: u16) -> u16 {
         self.regs.set_half_carry_flag(half_carry_addition_u16(first, second));
-        self.regs.set_carry_flag((first as u32) + (second as u32) > 0xFFFF);
+        self.regs.set_carry_flag(first > 0xFFFF - second);
         self.regs.set_subtract_flag(false);
         let new_val = first.wrapping_add(second);
-        self.regs.set_zero_flag(new_val == 0);
         new_val
     }
 
@@ -1216,7 +1215,7 @@ fn half_carry_subtraction(first: u8, second: u8) -> bool {
 }
 
 fn half_carry_addition_u16(first: u16, second: u16) -> bool {
-    (((first & 0x00FF) + (second & 0x00FF)) & 0x0100) == 0x0100
+    (first & 0x07FF) + (second & 0x07FF) > 0x07FF
 }
 
 // fn half_carry_subtraction_16(first: u8, second: u8) -> bool {
