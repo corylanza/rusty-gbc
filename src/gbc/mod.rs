@@ -289,7 +289,7 @@ impl Cpu {
             // LD (nn),A
             0xEA => { let nn = self.next_u16(); self.mem.write(nn, self.regs.a); 8 },
             // LD A, ($FF00 + C)
-            0xF2 => { self.regs.a = self.mem.read(0xFF00) + self.regs.c; 8 },
+            0xF2 => { self.regs.a = self.mem.read(0xFF00 + (self.regs.c as u16)); 8 },
             // LD ($FF00+C),A
             0xE2 => { self.mem.write(0xFF00 + self.regs.c as u16, self.regs.a); 8 },
             // LD A, (HL Dec/-)
