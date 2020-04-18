@@ -124,7 +124,8 @@ impl Cpu {
         let opcode = self.next_byte();
 
         if !self.mem.booting {
-            //println!("executing ${:02X} at address ${:04X}", opcode, self.regs.pc-1);
+            //println!("executing ${:02X} at address ${:04X} AF {:04X} BC {:04X} DE {:04X} SP: {:04X}", opcode, self.regs.pc-1,
+            //    self.regs.get_af(), self.regs.get_bc(), self.regs.get_de(), self.regs.sp);
         }
 
         match opcode {
@@ -473,43 +474,43 @@ impl Cpu {
             0xFE => { let n = self.next_byte(); self.compare(n); 8 },
             // INC
             // INC A
-            0x3C => { self.regs.a = self.add(self.regs.a, 1); 4 },
+            0x3C => { self.regs.a = self.inc(self.regs.a); 4 },
             // INC B
-            0x04 => { self.regs.b = self.add(self.regs.b, 1); 4 },
+            0x04 => { self.regs.b = self.inc(self.regs.b); 4 },
             // INC C
-            0x0C => { self.regs.c = self.add(self.regs.c, 1); 4 },
+            0x0C => { self.regs.c = self.inc(self.regs.c); 4 },
             // INC D
-            0x14 => { self.regs.d = self.add(self.regs.d, 1); 4 },
+            0x14 => { self.regs.d = self.inc(self.regs.d); 4 },
             // INC E
-            0x1C => { self.regs.e = self.add(self.regs.e, 1); 4 },
+            0x1C => { self.regs.e = self.inc(self.regs.e); 4 },
             // INC H
-            0x24 => { self.regs.h = self.add(self.regs.h, 1); 4 },
+            0x24 => { self.regs.h = self.inc(self.regs.h); 4 },
             // INC L
-            0x2C => { self.regs.l = self.add(self.regs.l, 1); 4 },
+            0x2C => { self.regs.l = self.inc(self.regs.l); 4 },
             // INC (HL)
             0x34 => { 
-                let new_hl = self.add(self.byte_at_hl(), 1); 
+                let new_hl = self.inc(self.byte_at_hl()); 
                 self.set_byte_at_hl(new_hl);
                 12
             },
             // DEC
             // DEC A
-            0x3D => { self.regs.a = self.subtract(self.regs.a, 1); 4 },
+            0x3D => { self.regs.a = self.dec(self.regs.a); 4 },
             // DEC B
-            0x05 => { self.regs.b = self.subtract(self.regs.b, 1); 4 },
+            0x05 => { self.regs.b = self.dec(self.regs.b); 4 },
             // DEC C
-            0x0D => { self.regs.c = self.subtract(self.regs.c, 1); 4 },
+            0x0D => { self.regs.c = self.dec(self.regs.c); 4 },
             // DEC D
-            0x15 => { self.regs.d = self.subtract(self.regs.d, 1); 4 },
+            0x15 => { self.regs.d = self.dec(self.regs.d); 4 },
             // DEC E
-            0x1D => { self.regs.e = self.subtract(self.regs.e, 1); 4 },
+            0x1D => { self.regs.e = self.dec(self.regs.e); 4 },
             // DEC H
-            0x25 => { self.regs.h = self.subtract(self.regs.h, 1); 4 },
+            0x25 => { self.regs.h = self.dec(self.regs.h); 4 },
             // DEC L
-            0x2D => { self.regs.l = self.subtract(self.regs.l, 1); 4 },
+            0x2D => { self.regs.l = self.dec(self.regs.l); 4 },
             // DEC (HL)
             0x35 => { 
-                let new_hl = self.subtract(self.byte_at_hl(), 1); 
+                let new_hl = self.dec(self.byte_at_hl()); 
                 self.set_byte_at_hl(new_hl); 
                 12
             },
@@ -736,6 +737,14 @@ impl Cpu {
         new_val
     }
 
+    fn inc(&mut self, first: u8) -> u8 {
+        self.regs.set_half_carry_flag(half_carry_addition(first, 1));
+        self.regs.set_subtract_flag(false);
+        let new_val = first.wrapping_add(1);
+        self.regs.set_zero_flag(new_val == 0);
+        new_val
+    }
+
     fn add_carry(&mut self, first: u8, second: u8) -> u8 {
         let second = second + if self.regs.carry_flag() { 1 } else { 0 };
         self.regs.set_half_carry_flag(half_carry_addition(first, second));
@@ -760,6 +769,15 @@ impl Cpu {
         self.regs.set_carry_flag((first as i16) - (second as i16) > 0x00);
         self.regs.set_subtract_flag(true);
         let new_val = first.wrapping_sub(second);
+        self.regs.set_zero_flag(new_val == 0);
+        new_val
+    }
+
+    
+    fn dec(&mut self, first: u8) -> u8 {
+        self.regs.set_half_carry_flag(half_carry_subtraction(first, 1));
+        self.regs.set_subtract_flag(true);
+        let new_val = first.wrapping_sub(1);
         self.regs.set_zero_flag(new_val == 0);
         new_val
     }
