@@ -3,8 +3,8 @@ extern crate hex;
 use hex::FromHex;
 use text_io::read;
 use std::collections::HashSet;
-use super::gbc::memory::Memory;
-use super::gbc::memory::Registers;
+use super::gbc::Mmu;
+use super::gbc::Registers;
 
 pub struct Debugger {
     pub breakpoints: HashSet<u16>
@@ -23,7 +23,7 @@ impl Debugger {
         }
     }
 
-    pub fn break_at(&self, addr: &u16, mem: &Memory, regs: &Registers) {
+    pub fn break_at(&self, addr: &u16, mem: &Mmu, regs: &Registers) {
         println!("Hit breakpoint {:04X}\nA: {:02X}, B: {:02X}, C: {:02X}, D: {:02X}, E: {:02X}, F: {:02X}, H: {:02X}, L: {:02X}, SP: {:04X}", 
             addr, regs.a, regs.b, regs.c, regs.d, regs.e, regs.f, regs.h, regs.l, regs.sp);
         println!("flags: Z: {}, H: {}, C: {}, N: {}", 

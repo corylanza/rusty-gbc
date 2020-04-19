@@ -1,15 +1,17 @@
-pub mod memory;
 pub mod gpu;
 mod boot;
+mod mmu;
+mod memory;
+mod registers;
 
 // use std::time::Instant;
 // use std::{thread, time};
-use memory::Memory;
-use memory::Registers;
+pub use mmu::Mmu;
+pub use registers::Registers;
 use super::debugger::Debugger;
 
 pub struct Cpu {
-    mem: Memory,
+    mem: Mmu,
     regs: Registers,
     ime: bool, // disables interrupts when false overriding IE register
     halted: bool,
@@ -19,7 +21,7 @@ pub struct Cpu {
 impl Cpu {
     pub fn new(cartridge_path: &str) -> Cpu {
         Cpu {
-            mem: Memory::new(cartridge_path),
+            mem: Mmu::new(cartridge_path),
             regs: Registers::new(),
             ime: true,
             halted: false,
