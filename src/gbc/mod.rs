@@ -70,11 +70,11 @@ impl Cpu {
     }
 
     fn handle_interrupt(&mut self, flag: u8, enabled: u8, requested: u8) -> bool {
-        if enabled & flag > 0 && requested & flag > 0 {
-            self.mem.write(0xFF0F, requested & !flag);
+        if enabled & requested & flag > 0 {
             self.halted = false;
             if self.ime {
                 self.ime = false;
+                self.mem.write(0xFF0F, requested & !flag);
                 let pc = self.regs.pc;
                 self.mem.push_u16(&mut self.regs, pc);
                 self.regs.pc = match flag {
