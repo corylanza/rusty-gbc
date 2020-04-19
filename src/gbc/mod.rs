@@ -12,6 +12,7 @@ pub struct Cpu {
     mem: Memory,
     regs: Registers,
     ime: bool, // disables interrupts when false overriding IE register
+    halted: bool,
     debugger: Option<Debugger>
 }
 
@@ -21,6 +22,7 @@ impl Cpu {
             mem: Memory::new(cartridge_path),
             regs: Registers::new(),
             ime: true,
+            halted: false,
             debugger: None
         }
     }
@@ -37,11 +39,13 @@ impl Cpu {
             //let start = Instant::now();
             loop {
                 self.handle_interrupts();
-                let cycles = self.cpu_step() as u64;
-                if remaining_cycles < cycles {
-                    break
-                } else {
-                    remaining_cycles -= cycles;
+                if !self.halted {
+                    let cycles = self.cpu_step() as u64;
+                    if remaining_cycles < cycles {
+                        break
+                    } else {
+                        remaining_cycles -= cycles;
+                    }
                 }
             }
             
@@ -56,42 +60,36 @@ impl Cpu {
 
     fn handle_interrupts(&mut self) {
         // TODO interrupts take 20 cycles to handle (+ 4 if in halt mode)
-        if self.ime {
-            let int_enable = self.mem.read(0xFFFF);
-            let int_request = self.mem.read(0xFF0F);
-            let interrupt = |b: u8| -> bool { 
-                int_enable & b > 0 &&  int_request & b > 0
-            };
-            if interrupt(1) {
-                // v-blank
-                self.mem.write(0xFF0F, int_request & !1);
-                self.handle_interrupt(0x40);
-            }
-            if interrupt(2) {
-                // LCD Stat
-                self.handle_interrupt(0x48)
-            }
-            if interrupt(4) {
-                // Timer
-                self.handle_interrupt(0x50)
-            }
-            if interrupt(8) {
-                // Serial
-                self.handle_interrupt(0x58)
-            }
-            if interrupt(16) {
-                // Joypad
-                self.handle_interrupt(0x60)
+        let int_enable = self.mem.read(0xFFFF);
+        let int_request = self.mem.read(0xFF0F);
+        for flag in vec![1, 2, 4, 8, 16] {
+            if self.handle_interrupt(flag, int_enable, int_request) {
+                break
             }
         }
     }
 
-    fn handle_interrupt(&mut self, addr: u16) {
-        //println!("handled INT {:04X}", addr);
-        self.ime = false;
-        let pc = self.regs.pc;
-        self.mem.push_u16(&mut self.regs, pc);
-        self.regs.pc = addr;
+    fn handle_interrupt(&mut self, flag: u8, enabled: u8, requested: u8) -> bool {
+        if enabled & flag > 0 && requested & flag > 0 {
+            self.mem.write(0xFF0F, requested & !flag);
+            self.halted = false;
+            if self.ime {
+                self.ime = false;
+                let pc = self.regs.pc;
+                self.mem.push_u16(&mut self.regs, pc);
+                self.regs.pc = match flag {
+                    1 => 0x40, // v-blank
+                    2 => 0x48, // LCD Stat
+                    4 => 0x50, // Timer
+                    8 => 0x58, // Serial
+                    16 => 0x60, // Joypad
+                    _ => panic!("unknown interrupt")
+                };
+                println!("handled INT {:04X}", self.regs.pc);
+            }
+            return true;
+        }
+        false
     }
 
     fn check_breakpoint(&mut self) {
@@ -132,7 +130,7 @@ impl Cpu {
             // HALT
             0x76 | 0x10 => { 
                 self.mem.gpu.render_scanline();
-                loop {}
+                self.halted = true; 4 
             }
             // LD B,n
             0x06 => { self.regs.b = self.next_byte(); 8 },
