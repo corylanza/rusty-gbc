@@ -21,6 +21,7 @@ const IO_END: u16 = 0xFF7F;
 const HRAM_START: u16 = 0xFF80;
 const HRAM_END: u16 = 0xFFFE;
 const INTERUPTS_ENABLE: u16 = 0xFFFF;
+const INTERUPT_REQUEST: u16 = 0xFF0F;
 
 
 pub struct Mmu {
@@ -37,11 +38,11 @@ pub struct Mmu {
 }
 
 impl Mmu {
-    pub fn new(filepath: &str) -> Mmu {
+    pub fn new(filepath: &str, gpu: Gpu) -> Mmu {
         Mmu {
             boot_rom: super::boot::load_rom(),
             cartridge_rom: Rom::new(filepath),
-            gpu: Gpu::new(),
+            gpu: gpu,
             eram: Ram::new(0x8000),
             wram: Ram::new(0x2000),
             oam: Ram::new(0xA0),
@@ -50,6 +51,11 @@ impl Mmu {
             interupt_switch: 0,
             booting: true
         }
+    }
+
+    pub fn mmu_step(&mut self, cycles: u8) {
+        self.gpu.gpu_step(cycles);
+        self.write(INTERUPT_REQUEST, self.read(INTERUPT_REQUEST) | self.gpu.interrupts);
     }
 
     pub fn read(&self, address: u16) -> u8 {
@@ -132,24 +138,5 @@ impl Mmu {
         let res = self.read_u16(regs.sp);
         regs.sp = regs.sp.wrapping_add(2);
         res
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::gbc::Registers;
-    use crate::gbc::Mmu;
-
-    #[test]
-    fn test_stack_alloc() {
-        let mut regs = Registers::new();
-        regs.sp = 0xFFFE;
-        let mut mem = Mmu::new("./roms/tetris.gbc");
-        mem.push_u16(&mut regs, 0x1234);
-        assert_eq!(mem.pop_u16(&mut regs), 0x1234);
-        mem.push_u16(&mut regs, 0xabcd);
-        mem.push_u16(&mut regs, 0x9f9f);
-        assert_eq!(mem.pop_u16(&mut regs), 0x9f9f);
-        assert_eq!(mem.pop_u16(&mut regs), 0xabcd);
     }
 }

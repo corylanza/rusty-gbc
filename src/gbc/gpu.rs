@@ -1,23 +1,30 @@
 extern crate sdl2; 
 
-use sdl2::Sdl;
 use sdl2::render::WindowCanvas;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
+
+use crate::SCALE;
 
 const SCREEN_WIDTH: u8 = 160;
 const SCREEN_HEIGHT: u8 = 144;
 
-const H_BLANK_MODE: u8 = 0;
-const V_BLANK_MODE: u8 = 1;
-// const OAM_SEARCH_MODE: u8 = 2;
-// const LCD_TRANSFER_MODE: u8 = 3;
+//const H_BLANK_MODE: u8 = 0;
+//const V_BLANK_MODE: u8 = 1;
+//const OAM_SEARCH_MODE: u8 = 2;
+//const LCD_TRANSFER_MODE: u8 = 3;
+const LCD_STATUS_COINCIDENCE_FLAG: u8 = 4;
+const LCD_STATUS_LYC_LY_INTERRUPT_ENABLED: u8 = 64;
+
+
+const BYTES_PER_PIXEL: u8 = 4; // RGBA8888
+const BUFFER_HEIGHT: u16 = 256;
+const BUFFER_WIDTH: u16 = 256;
+const BUFFER_SIZE: usize =
+    (BUFFER_HEIGHT as usize * BUFFER_WIDTH as usize * BYTES_PER_PIXEL as usize);
 
 pub struct Gpu {
-    sdl_context: Sdl,
-    tileset_canvas: WindowCanvas,
+    //tileset_canvas: WindowCanvas,
     background_canvas: WindowCanvas,
     vram: [u8; 0x8000],
     tile_set: [Tile; 384],
@@ -28,11 +35,12 @@ pub struct Gpu {
     pub ly: u8,
     pub lyc: u8,
     pub wy: u8,
-    pub wx: u8
+    pub wx: u8,
+    cycle_count: usize,
+    pub interrupts: u8
 }
 
 type Tile = [[Color; 8]; 8];
-const SCALE: u32 = 2;
 
 fn empty_tile() -> Tile {
     [[Color::RGB(0, 0, 0); 8]; 8]
@@ -50,24 +58,11 @@ fn render_tile(canvas: &mut WindowCanvas, tile: Tile, x: usize, y: usize) {
 }
 
 impl Gpu {
-    pub fn new() -> Self {
-        let sdl = sdl2::init().unwrap();
-        let video_subsystem = sdl.video().unwrap();
-     
-        let tiles_window = video_subsystem.window("Tileset", 16 * 8 * SCALE, (384 / 16) * 8 * SCALE)
-            .position_centered()
-            .resizable()
-            .build()
-            .unwrap();
-        let bg_window = video_subsystem.window("Background", 32 * 8 * SCALE, 32 * 8 * SCALE)
-            .position_centered()
-            .resizable()
-            .build()
-            .unwrap();
-        Gpu {
-            sdl_context: sdl,
-            tileset_canvas: tiles_window.into_canvas().present_vsync().build().unwrap(),
-            background_canvas: bg_window.into_canvas().present_vsync().build().unwrap(),
+    pub fn new(bg: WindowCanvas) -> Result<Self, String> {
+
+        Ok(Gpu {
+            //tileset_canvas: tiles_window.into_canvas().build().unwrap(),
+            background_canvas: bg,
             vram: [0; 0x8000],
             tile_set: [empty_tile(); 384],
             lcd_control: 0,
@@ -77,37 +72,89 @@ impl Gpu {
             ly: 0,
             lyc: 0,
             wy: 0,
-            wx: 0
-        }
+            wx: 0,
+            cycle_count: 0,
+            interrupts: 0
+        })
     }
 
-    fn set_lcdc_mode(&mut self, mode: u8) {
-        self.lcdc_status = self.lcdc_status & 0b11111100 | mode;
-    }
+    pub fn gpu_step(&mut self, cycles: u8) {
+        self.cycle_count += cycles as usize;
 
-    pub fn render_scanline(&mut self) -> u64 {
-        self.ly = (self.ly + 1) % 154;
-        match self.ly {
-            0..=143 => {
-                // OAM search 20 * cycles
-                // Pixel Transfer 43 * 4 cycles
-                // H - blank 51 * 4 cycles
-                self.set_lcdc_mode(H_BLANK_MODE);
-                51 * 4
+        match self.cycle_count {
+            0..=80 => { 
+                /* OAM SEARCH */ 
             },
-            144..=153 => {
-                
-                if self.ly == 144 {
-                    self.render();
-                }
-                self.set_lcdc_mode(V_BLANK_MODE);
-                114 * 4
+            80..=252 => { 
+                /* SCANLINE*/ 
+            },
+            252..=456 => {
+                /* H-Blank*/ 
             },
             _ => {
-                0
+                self.ly = (self.ly + 1) % 154;
+                self.cycle_count = 0;
+
+                if self.ly == 144 {
+                    self.interrupts |= 1;
+                    self.render_background();
+                }
+                if self.lcdc_status & LCD_STATUS_LYC_LY_INTERRUPT_ENABLED > 0 && self.lyc == self.ly  {
+                    self.lcdc_status |= LCD_STATUS_COINCIDENCE_FLAG;
+                    self.interrupts |= 2;
+                }
             }
         }
+
+        // let buffer = [0u8; BUFFER_SIZE];
+        // let tc = self.background_canvas.texture_creator();
+        // let mut texture = tc
+        //     .create_texture_streaming(
+        //         sdl2::pixels::PixelFormatEnum::ABGR8888,
+        //         160,
+        //         144,
+        //     )
+        //     .unwrap();
+
+        // texture
+        //     .update(
+        //         None,
+        //         &buffer,
+        //         BUFFER_WIDTH as usize * BYTES_PER_PIXEL as usize,
+        //     )
+        //     .unwrap();
+
+            
+        // self.background_canvas.copy(&texture, None, None).unwrap();
     }
+
+    // fn set_lcdc_mode(&mut self, mode: u8) {
+    //     self.lcdc_status = self.lcdc_status & 0b11111100 | mode;
+    // }
+
+    // pub fn render_scanline(&mut self) -> u64 {
+    //     self.ly = (self.ly + 1) % 154;
+    //     match self.ly {
+    //         0..=143 => {
+    //             // OAM search 20 * cycles
+    //             // Pixel Transfer 43 * 4 cycles
+    //             // H - blank 51 * 4 cycles
+    //             self.set_lcdc_mode(H_BLANK_MODE);
+    //             51 * 4
+    //         },
+    //         144..=153 => {
+                
+    //             if self.ly == 144 {
+    //                 self.render();
+    //             }
+    //             self.set_lcdc_mode(V_BLANK_MODE);
+    //             114 * 4
+    //         },
+    //         _ => {
+    //             0
+    //         }
+    //     }
+    // }
 
     // pub fn draw_scanline(&mut self, scanline: u8) {
     //     for x in 0..SCREEN_WIDTH {
@@ -115,13 +162,13 @@ impl Gpu {
     //     }
     // }
 
-    pub fn render(&mut self) {
-        self.render_tileset();
-        self.render_background();
-    }
+    // pub fn render(&mut self) {
+    //     //self.render_tileset();
+    //     self.render_background();
+    // }
 
-    fn render_background(&mut self) {
-        self.background_canvas.set_draw_color(Color::RGB(0xFF, 0xFF, 0xFF));
+    pub fn render_background(&mut self) {
+        self.background_canvas.set_draw_color(Color::RGB(0, 0xFF, 0xFF));
         self.background_canvas.clear();
         for tile_y in 0..32 {
             for tile_x in 0..32 {
@@ -131,38 +178,18 @@ impl Gpu {
         }
         self.background_canvas.set_draw_color(Color::RGB(0, 0, 0));
         self.background_canvas.draw_rect(Rect::new(self.scx as i32 * SCALE as i32, self.scy as i32 * SCALE as i32, SCREEN_WIDTH as u32 * SCALE as u32, SCREEN_HEIGHT as u32 * SCALE as u32)).unwrap();
-        let mut event_pump = self.sdl_context.event_pump().unwrap();
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit {..} |
-                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                    panic!("closed");
-                },
-                _ => {}
-            }
-        }
         self.background_canvas.present();
     }
 
 
-    fn render_tileset(&mut self) {
-        self.tileset_canvas.set_draw_color(Color::RGB(0xFF, 0xFF, 0xFF));
-        self.tileset_canvas.clear();
-        for tile in 0..384 {
-            render_tile(&mut self.tileset_canvas, self.tile_set[tile], tile % 16, tile / 16);
-        }
-        let mut event_pump = self.sdl_context.event_pump().unwrap();
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit {..} |
-                Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
-                    panic!("closed");
-                },
-                _ => {}
-            }
-        }
-        self.tileset_canvas.present();
-    }
+    // fn render_tileset(&mut self) {
+    //     self.tileset_canvas.set_draw_color(Color::RGB(0xFF, 0xFF, 0xFF));
+    //     self.tileset_canvas.clear();
+    //     for tile in 0..384 {
+    //         render_tile(&mut self.tileset_canvas, self.tile_set[tile], tile % 16, tile / 16);
+    //     }
+    //     self.tileset_canvas.present();
+    // }
 
     fn get_tile_at(&self, address: u16) -> Tile {
         let tile_id = self.vram[(address + 0x1800) as usize];
@@ -176,7 +203,9 @@ impl Gpu {
 
     pub fn write_to_vram(&mut self, address: u16, value: u8) {
         self.vram[address as usize] = value;
-        if address >= 0x1800 { return; }
+        if address >= 0x1800 {
+            return; 
+        }
 
         let index: usize = (address & 0xFFFE) as usize;
         let byte1 = self.vram[index];

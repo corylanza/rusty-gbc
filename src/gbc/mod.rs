@@ -4,14 +4,13 @@ mod mmu;
 mod memory;
 mod registers;
 
-// use std::time::Instant;
-// use std::{thread, time};
 pub use mmu::Mmu;
 pub use registers::Registers;
 use super::debugger::Debugger;
+use crate::gbc::gpu::Gpu;
 
 pub struct Cpu {
-    mem: Mmu,
+    pub mem: Mmu,
     regs: Registers,
     ime: bool, // disables interrupts when false overriding IE register
     halted: bool,
@@ -19,9 +18,9 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(cartridge_path: &str) -> Cpu {
+    pub fn new(cartridge_path: &str, gpu: Gpu) -> Cpu {
         Cpu {
-            mem: Mmu::new(cartridge_path),
+            mem: Mmu::new(cartridge_path, gpu),
             regs: Registers::new(),
             ime: true,
             halted: false,
@@ -33,42 +32,16 @@ impl Cpu {
         self.debugger = Some(debug);
     }
 
-    pub fn run(&mut self) {
-        let mut cycle_count: u64 = 0;
-        loop {
-            let mut remaining_cycles: u64 = self.mem.gpu.render_scanline() * 100;
-            //self.mem.write(0xFF44, 0x90);
-            //let start = Instant::now();
-            loop {
-                self.handle_interrupts();
-                if !self.halted {
-                    let cycles = self.cpu_step() as u64;
-                    if remaining_cycles < cycles {
-                        break
-                    } else {
-                        remaining_cycles -= cycles;
-                    }
-                }
-            }
-            
-            cycle_count += 17556;
-            if cycle_count > 4048576 {
-                cycle_count = 0;
-                //let elapsed = start.elapsed().as_millis() as u64;
-                //thread::sleep(time::Duration::from_millis(1000 - elapsed));
-            }
-        }
-    }
-
-    fn handle_interrupts(&mut self) {
+    fn handle_interrupts(&mut self) -> u8 {
         // TODO interrupts take 20 cycles to handle (+ 4 if in halt mode)
         let int_enable = self.mem.read(0xFFFF);
         let int_request = self.mem.read(0xFF0F);
         for flag in vec![1, 2, 4, 8, 16] {
             if self.handle_interrupt(flag, int_enable, int_request) {
-                break
+                return 20
             }
         }
+        0
     }
 
     fn handle_interrupt(&mut self, flag: u8, enabled: u8, requested: u8) -> bool {
@@ -115,8 +88,24 @@ impl Cpu {
         val
     }
 
+    pub fn cpu_step(&mut self) {
+        let cycles = self.step_cycles();
+        self.mem.mmu_step(cycles);
+    }
+
+    fn step_cycles(&mut self) -> u8 {
+        if self.handle_interrupts() > 0 {
+            return 20
+        }
+        if self.halted {
+            self.mem.gpu.render_background();
+            return 4
+        }
+        self.next_intruction()
+    }
+
     /// returns number of cycles completed
-    fn cpu_step(&mut self) -> u8 {
+    pub fn next_intruction(&mut self) -> u8 {
         if self.debugger.is_some() {
             self.check_breakpoint();
         }
@@ -130,8 +119,7 @@ impl Cpu {
 
         match opcode {
             // HALT
-            0x76 | 0x10 => { 
-                self.mem.gpu.render_scanline();
+            0x76 | 0x10 => {
                 self.halted = true; 4 
             }
             // LD B,n
@@ -1552,26 +1540,3 @@ fn half_carry_addition_u16(first: u16, second: u16) -> bool {
 // fn half_carry_subtraction_16(first: u8, second: u8) -> bool {
 //     ((first & 0x00FF) as i32 - (second & 0x00FF) as i32) < 0
 // }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_swap() {
-        let mut cpu = Cpu::new("./roms/tetris.gbc");
-        assert_eq!(0b11110000, cpu.swap_nibles(0b00001111));
-        assert_eq!(0b00110101, cpu.swap_nibles(0b01010011));
-        assert_eq!(0b10101010, cpu.swap_nibles(0b10101010));
-    }
-
-    #[test]
-    fn test_bit() {
-        let mut cpu = Cpu::new("./roms/tetris.gbc");
-        assert_eq!(1, cpu.set_bit(0, 0));
-        assert_eq!(0b10000000, cpu.set_bit(0, 7));
-        assert_eq!(0b00111100, cpu.set_bit(0b00101100, 4));
-        assert_eq!(0b10101001, cpu.reset_bit(0b10111001, 4));
-        assert_eq!(0, cpu.reset_bit(1, 0));
-    }
-}
