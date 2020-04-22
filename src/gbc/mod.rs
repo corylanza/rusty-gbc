@@ -98,7 +98,7 @@ impl Cpu {
             return 20
         }
         if self.halted {
-            self.mem.gpu.render_background();
+            //self.mem.gpu.render_background();
             return 4
         }
         self.next_intruction()

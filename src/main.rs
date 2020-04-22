@@ -10,8 +10,6 @@ extern crate sdl2;
 use sdl2::keyboard::Keycode;
 use sdl2::event::Event;
 
-const SCALE: u32 = 2;
-
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
 
@@ -25,7 +23,7 @@ fn main() -> Result<(), String> {
         //     .resizable()
         //     .build()
         //     .unwrap();
-        let bg_window = video_subsystem.window("Background", 32 * 8 * SCALE, 32 * 8 * SCALE)
+        let bg_window = video_subsystem.window("Background", 256, 256)
             .position_centered()
             .resizable()
             .build()
