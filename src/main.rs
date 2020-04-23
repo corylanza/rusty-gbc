@@ -17,12 +17,6 @@ fn main() -> Result<(), String> {
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
 
-        // let tiles_window = video_subsystem.window("Tileset", 16 * 8 * SCALE, (384 / 16) * 8 * SCALE)
-        //     .position_centered()
-        //     .opengl()
-        //     .resizable()
-        //     .build()
-        //     .unwrap();
         let bg_window = video_subsystem.window("Background", 256, 256)
             .position_centered()
             .resizable()
@@ -35,6 +29,19 @@ fn main() -> Result<(), String> {
             .accelerated()
             .build()
             .unwrap();
+
+        let tiles_window = video_subsystem.window("Tileset", 16 * 8 * 2, (384 / 16) * 8 * 2)
+            .position_centered()
+            .opengl()
+            .resizable()
+            .build()
+            .unwrap();
+        let mut tile_canvas = tiles_window.into_canvas()
+            .target_texture()
+            .present_vsync()
+            .accelerated()
+            .build()
+            .unwrap(); 
 
         let gpu = Gpu::new(canvas).unwrap();
         let mut gbc = Cpu::new(&args[1], gpu);
@@ -55,6 +62,9 @@ fn main() -> Result<(), String> {
                     },
                     Event::KeyDown { keycode: Some(Keycode::L), .. } => {
                         gbc.log = !gbc.log;
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::T), .. } => {
+                        gbc.mem.gpu.render_tileset(&mut tile_canvas);
                     },
                     Event::MouseButtonDown { .. } => {
                         println!("PC: {:04X} op {:02X}", gbc.regs.pc, gbc.mem.read(gbc.regs.pc));

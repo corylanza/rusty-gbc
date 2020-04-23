@@ -111,7 +111,7 @@ impl Mmu {
             ECHO_START ..= ECHO_END => self.wram.write(address - ECHO_START, value),
             OAM_START ..= OAM_END => self.oam.write(address - OAM_START, value),
             0xFF00 => { /* Can not write to joypad register */ },
-            0xFEA0 ..= 0xFEFF => { /* Unusable */} ,
+            0xFEA0 ..= 0xFEFF | 0xFF80 => { /* Unusable */} ,
             0xFF40 => self.gpu.lcd_control = value,
             0xFF41 => self.gpu.lcdc_status = value & 0b11111000,
             0xFF42 => self.gpu.scy= value,

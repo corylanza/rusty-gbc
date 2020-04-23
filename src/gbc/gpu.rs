@@ -45,16 +45,16 @@ fn empty_tile() -> Tile {
     [[Color::RGB(0, 0, 0); 8]; 8]
 }
 
-// fn render_tile(canvas: &mut WindowCanvas, tile: Tile, x: usize, y: usize) {
-//     for row in 0..8 {
-//         for pixel in 0..8 {
-//             let real_x = (x as u32 * 8 * SCALE) + (pixel * SCALE);
-//             let real_y = (y as u32 * 8 * SCALE) + (row * SCALE);
-//             canvas.set_draw_color(tile[row as usize][pixel as usize]);
-//             canvas.fill_rect(Rect::new(real_x as i32, real_y as i32, SCALE, SCALE)).unwrap();
-//         }
-//     }
-// }
+fn render_tile(canvas: &mut WindowCanvas, tile: Tile, x: usize, y: usize, scale: u32) {
+    for row in 0..8 {
+        for pixel in 0..8 {
+            let real_x = (x as u32 * 8 * scale) + (pixel * scale);
+            let real_y = (y as u32 * 8 * scale) + (row * scale);
+            canvas.set_draw_color(tile[row as usize][pixel as usize]);
+            canvas.fill_rect(Rect::new(real_x as i32, real_y as i32, scale, scale)).unwrap();
+        }
+    }
+}
 
 impl Gpu {
     pub fn new(bg: WindowCanvas) -> Result<Self, String> {
@@ -166,15 +166,14 @@ impl Gpu {
     //     self.background_canvas.present();
     // }
 
-
-    // fn render_tileset(&mut self) {
-    //     self.tileset_canvas.set_draw_color(Color::RGB(0xFF, 0xFF, 0xFF));
-    //     self.tileset_canvas.clear();
-    //     for tile in 0..384 {
-    //         render_tile(&mut self.tileset_canvas, self.tile_set[tile], tile % 16, tile / 16);
-    //     }
-    //     self.tileset_canvas.present();
-    // }
+    pub fn render_tileset(&mut self, tileset_canvas: &mut WindowCanvas) {
+        tileset_canvas.set_draw_color(Color::RGB(0xFF, 0xFF, 0xFF));
+        tileset_canvas.clear();
+        for tile in 0..384 {
+            render_tile(tileset_canvas, self.tile_set[tile], tile % 16, tile / 16, 2);
+        }
+        tileset_canvas.present();
+    }
 
     fn get_bg_tile_at(&self, x: u8, y: u8) -> Tile {
         let address = y as u16 * 32 + x as u16;
