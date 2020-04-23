@@ -11,9 +11,10 @@ use crate::gbc::gpu::Gpu;
 
 pub struct Cpu {
     pub mem: Mmu,
-    regs: Registers,
+    pub regs: Registers,
     ime: bool, // disables interrupts when false overriding IE register
     halted: bool,
+    pub log: bool,
     debugger: Option<Debugger>
 }
 
@@ -24,6 +25,7 @@ impl Cpu {
             regs: Registers::new(),
             ime: true,
             halted: false,
+            log: false,
             debugger: None
         }
     }
@@ -45,11 +47,11 @@ impl Cpu {
     }
 
     fn handle_interrupt(&mut self, flag: u8, enabled: u8, requested: u8) -> bool {
-        if enabled & requested & flag > 0 {
+        if enabled & requested & flag == flag {
             self.halted = false;
             if self.ime {
                 self.ime = false;
-                self.mem.write(0xFF0F, requested & !flag);
+                self.mem.write(0xFF0F, requested ^ flag);
                 let pc = self.regs.pc;
                 self.mem.push_u16(&mut self.regs, pc);
                 self.regs.pc = match flag {
@@ -60,9 +62,11 @@ impl Cpu {
                     16 => 0x60, // Joypad
                     _ => panic!("unknown interrupt")
                 };
-                println!("handled INT {:04X}", self.regs.pc);
+                if self.log {
+                    println!("handled INT {:02X}", self.regs.pc);
+                }
+                return true;
             }
-            return true;
         }
         false
     }
@@ -112,14 +116,17 @@ impl Cpu {
 
         let opcode = self.next_byte();
 
-        if !self.mem.booting {
-            //println!("executing ${:02X} at address ${:04X} AF {:04X} BC {:04X} DE {:04X} SP: {:04X}", opcode, self.regs.pc-1,
-            //    self.regs.get_af(), self.regs.get_bc(), self.regs.get_de(), self.regs.sp);
+        if self.log {
+            println!("executing ${:02X} at address ${:04X} AF {:04X} BC {:04X} DE {:04X} HL {:04X} SP: {:04X}", opcode, self.regs.pc-1,
+                self.regs.get_af(), self.regs.get_bc(), self.regs.get_de(), self.regs.get_hl(), self.regs.sp);
         }
 
         match opcode {
             // HALT
             0x76 | 0x10 => {
+                if self.log {
+                    println!("halting");
+                }
                 self.halted = true; 4 
             }
             // LD B,n

@@ -80,11 +80,6 @@ impl Gpu {
     pub fn gpu_step(&mut self, cycles: u8) {
         self.cycle_count += cycles as usize;
 
-        if self.lcdc_status & LCD_STATUS_LYC_LY_INTERRUPT_ENABLED > 0 && self.lyc == self.ly  {
-            self.lcdc_status |= LCD_STATUS_COINCIDENCE_FLAG;
-            self.interrupts |= 2;
-        }
-
         match self.cycle_count {
             0..=80 => { 
                 /* OAM SEARCH */
@@ -105,6 +100,12 @@ impl Gpu {
             _ => {
                 self.ly += 1;
                 self.cycle_count = 0;
+
+                if self.lcdc_status & LCD_STATUS_LYC_LY_INTERRUPT_ENABLED > 0 && self.lyc == self.ly  {
+                    self.lcdc_status |= LCD_STATUS_COINCIDENCE_FLAG;
+                    self.interrupts |= 2;
+                }
+
                 if self.ly == 154 {
                     self.ly = 0;
                 } else if self.ly >= SCREEN_HEIGHT && self.lcdc_status & V_BLANK_MODE != V_BLANK_MODE {
@@ -177,7 +178,12 @@ impl Gpu {
 
     fn get_bg_tile_at(&self, x: u8, y: u8) -> Tile {
         let address = y as u16 * 32 + x as u16;
-        let tile_id = self.vram[(address + 0x1800) as usize];
+        let tile_id = if self.lcd_control & 0b00001000 > 0 {
+            self.vram[(address + 0x1C00) as usize]
+        } else {
+            self.vram[(address + 0x1800) as usize]
+        };
+
         if self.lcd_control & 0b00010000 > 0 {
             self.tile_set[tile_id as usize]
         } else {
@@ -187,6 +193,10 @@ impl Gpu {
     }
 
     pub fn write_to_vram(&mut self, address: u16, value: u8) {
+        if self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
+            // cannot access VRAM during LCD Transfer
+            return;
+        }
         self.vram[address as usize] = value;
         if address >= 0x1800 {
             return; 
@@ -210,6 +220,27 @@ impl Gpu {
     }
 
     pub fn read_from_vram(&self, address: u16) -> u8 {
+        if self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
+            // cannot access VRAM during LCD Transfer
+            return 0xFF;
+        }
         self.vram[address as usize]
+    }
+
+    pub fn write_to_oam(&mut self, value: u8) {
+        if self.lcd_control & OAM_SEARCH_MODE == LCD_TRANSFER_MODE
+            ||  self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
+            // cannot access OAM during OAM search or LCD Transfer
+            return;
+        }
+    }
+
+    pub fn read_from_oam(&mut self) -> u8 {
+        if self.lcd_control & OAM_SEARCH_MODE == LCD_TRANSFER_MODE
+            ||  self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
+            // cannot access OAM during OAM search or LCD Transfer
+            return 0xFF;
+        }
+        0xff
     }
 }

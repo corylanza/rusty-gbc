@@ -53,6 +53,12 @@ fn main() -> Result<(), String> {
                     Event::KeyDown { keycode: Some(Keycode::Escape), .. } => {
                         break 'main
                     },
+                    Event::KeyDown { keycode: Some(Keycode::L), .. } => {
+                        gbc.log = !gbc.log;
+                    },
+                    Event::MouseButtonDown { .. } => {
+                        println!("PC: {:04X} op {:02X}", gbc.regs.pc, gbc.mem.read(gbc.regs.pc));
+                    }
                     _ => {}
                 }
             }

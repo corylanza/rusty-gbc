@@ -56,6 +56,7 @@ impl Mmu {
     pub fn mmu_step(&mut self, cycles: u8) {
         self.gpu.gpu_step(cycles);
         self.write(INTERUPT_REQUEST, self.read(INTERUPT_REQUEST) | self.gpu.interrupts);
+        self.gpu.interrupts = 0;
     }
 
     pub fn read(&self, address: u16) -> u8 {
@@ -67,6 +68,7 @@ impl Mmu {
             WRAM_START ..= WRAM_END => self.wram.read(address - WRAM_START),
             ECHO_START ..= ECHO_END => self.wram.read(address - ECHO_START),
             OAM_START ..= OAM_END => self.oam.read(address - OAM_START),
+            0xFF00 => { 0x00 },
             0xFEA0 ..= 0xFEFF => 0xFF, // Unusable returns this
             0xFF40 => self.gpu.lcd_control,
             0xFF41 => self.gpu.lcdc_status,
@@ -108,12 +110,13 @@ impl Mmu {
             WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),
             ECHO_START ..= ECHO_END => self.wram.write(address - ECHO_START, value),
             OAM_START ..= OAM_END => self.oam.write(address - OAM_START, value),
+            0xFF00 => { /* Can not write to joypad register */ },
             0xFEA0 ..= 0xFEFF => { /* Unusable */} ,
             0xFF40 => self.gpu.lcd_control = value,
-            0xFF41 => self.gpu.lcdc_status = value,
+            0xFF41 => self.gpu.lcdc_status = value & 0b11111000,
             0xFF42 => self.gpu.scy= value,
             0xFF43 => self.gpu.scx = value,
-            0xFF44 => self.gpu.ly = value,
+            0xFF44 => { /* No Writes to VRAM*/},
             0xFF45 => self.gpu.lyc = value,
             0xFF4A => self.gpu.wy = value,
             0xFF4B => self.gpu.wx = value,
