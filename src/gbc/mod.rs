@@ -1,4 +1,5 @@
 pub mod gpu;
+pub mod input;
 mod boot;
 mod mmu;
 mod memory;
@@ -13,6 +14,7 @@ pub struct Cpu {
     pub mem: Mmu,
     pub regs: Registers,
     ime: bool, // disables interrupts when false overriding IE register
+    ei: bool,
     halted: bool,
     pub log: bool,
     debugger: Option<Debugger>
@@ -24,6 +26,7 @@ impl Cpu {
             mem: Mmu::new(cartridge_path, gpu),
             regs: Registers::new(),
             ime: true,
+            ei: false,
             halted: false,
             log: false,
             debugger: None
@@ -115,6 +118,10 @@ impl Cpu {
         }
 
         let opcode = self.next_byte();
+        if self.ei {
+            self.ime = true;
+            self.ei = false;
+        }
 
         if self.log {
             println!("executing ${:02X} at address ${:04X} AF {:04X} BC {:04X} DE {:04X} HL {:04X} SP: {:04X}", opcode, self.regs.pc-1,
@@ -602,7 +609,7 @@ impl Cpu {
             // DI
             0xF3 => { self.ime = false; 4 },
             // EI
-            0xFB => { self.ime = true; 4 }
+            0xFB => { self.ei = true; 4 }
             // RLCA
             0x07 => { self.regs.a = self.rotate_left_carry(self.regs.a); self.regs.set_zero_flag(false); 4 },
             // RLA

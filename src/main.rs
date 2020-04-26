@@ -66,6 +66,54 @@ fn main() -> Result<(), String> {
                     Event::KeyDown { keycode: Some(Keycode::T), .. } => {
                         gbc.mem.gpu.render_tileset(&mut tile_canvas);
                     },
+                    Event::KeyDown { keycode: Some(Keycode::S), .. } => {
+                        gbc.mem.input.key_pressed(gbc::input::Keycode::A);
+                    },
+                    Event::KeyUp { keycode: Some(Keycode::S), .. } => {
+                        gbc.mem.input.key_released(gbc::input::Keycode::A);
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::A), .. } => {
+                        gbc.mem.input.key_pressed(gbc::input::Keycode::B);
+                    },
+                    Event::KeyUp { keycode: Some(Keycode::A), .. } => {
+                        gbc.mem.input.key_released(gbc::input::Keycode::B);
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::Return), .. } => {
+                        gbc.mem.input.key_pressed(gbc::input::Keycode::Start);
+                    },
+                    Event::KeyUp { keycode: Some(Keycode::Return), .. } => {
+                        gbc.mem.input.key_released(gbc::input::Keycode::Start);
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
+                        gbc.mem.input.key_pressed(gbc::input::Keycode::Select);
+                    },
+                    Event::KeyUp { keycode: Some(Keycode::Space), .. } => {
+                        gbc.mem.input.key_released(gbc::input::Keycode::Select);
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
+                        gbc.mem.input.key_pressed(gbc::input::Keycode::Left);
+                    },
+                    Event::KeyUp { keycode: Some(Keycode::Left), .. } => {
+                        gbc.mem.input.key_released(gbc::input::Keycode::Left);
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
+                        gbc.mem.input.key_pressed(gbc::input::Keycode::Right);
+                    },
+                    Event::KeyUp { keycode: Some(Keycode::Right), .. } => {
+                        gbc.mem.input.key_released(gbc::input::Keycode::Right);
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
+                        gbc.mem.input.key_pressed(gbc::input::Keycode::Down);
+                    },
+                    Event::KeyUp { keycode: Some(Keycode::Down), .. } => {
+                        gbc.mem.input.key_released(gbc::input::Keycode::Down);
+                    },
+                    Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
+                        gbc.mem.input.key_pressed(gbc::input::Keycode::Up);
+                    },
+                    Event::KeyUp { keycode: Some(Keycode::Up), .. } => {
+                        gbc.mem.input.key_released(gbc::input::Keycode::Up);
+                    },
                     Event::MouseButtonDown { .. } => {
                         println!("PC: {:04X} op {:02X}", gbc.regs.pc, gbc.mem.read(gbc.regs.pc));
                     }

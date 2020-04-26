@@ -226,20 +226,20 @@ impl Gpu {
         self.vram[address as usize]
     }
 
-    pub fn write_to_oam(&mut self, value: u8) {
-        if self.lcd_control & OAM_SEARCH_MODE == LCD_TRANSFER_MODE
-            ||  self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
-            // cannot access OAM during OAM search or LCD Transfer
-            return;
-        }
-    }
+    // pub fn write_to_oam(&mut self, value: u8) {
+    //     if self.lcd_control & OAM_SEARCH_MODE == LCD_TRANSFER_MODE
+    //         ||  self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
+    //         // cannot access OAM during OAM search or LCD Transfer
+    //         return;
+    //     }
+    // }
 
-    pub fn read_from_oam(&mut self) -> u8 {
-        if self.lcd_control & OAM_SEARCH_MODE == LCD_TRANSFER_MODE
-            ||  self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
-            // cannot access OAM during OAM search or LCD Transfer
-            return 0xFF;
-        }
-        0xff
-    }
+    // pub fn read_from_oam(&mut self) -> u8 {
+    //     if self.lcd_control & OAM_SEARCH_MODE == LCD_TRANSFER_MODE
+    //         ||  self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
+    //         // cannot access OAM during OAM search or LCD Transfer
+    //         return 0xFF;
+    //     }
+    //     0xff
+    // }
 }

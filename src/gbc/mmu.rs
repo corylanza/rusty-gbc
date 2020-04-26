@@ -3,6 +3,7 @@ use super::memory::rom::Rom;
 use super::memory::ram::Ram;
 use std::str;
 use super::gpu::Gpu;
+use super::input::Input;
 
 const ROM_START: u16 = 0;
 const ROM_END: u16 = 0x7FFF;
@@ -31,6 +32,7 @@ pub struct Mmu {
     eram: Ram,
     wram: Ram,
     oam: Ram,
+    pub input: Input,
     io: Ram,
     hram: Ram,
     interupt_switch: u8,
@@ -46,6 +48,7 @@ impl Mmu {
             eram: Ram::new(0x8000),
             wram: Ram::new(0x2000),
             oam: Ram::new(0xA0),
+            input: Input::new(),
             io: Ram::new(0x80),
             hram: Ram::new(0x7F),
             interupt_switch: 0,
@@ -55,8 +58,10 @@ impl Mmu {
 
     pub fn mmu_step(&mut self, cycles: u8) {
         self.gpu.gpu_step(cycles);
-        self.write(INTERUPT_REQUEST, self.read(INTERUPT_REQUEST) | self.gpu.interrupts);
+        let interrupt = self.read(INTERUPT_REQUEST) | self.gpu.interrupts | self.input.interrupt;
+        self.write(INTERUPT_REQUEST, interrupt);
         self.gpu.interrupts = 0;
+        self.input.interrupt = 0;
     }
 
     pub fn read(&self, address: u16) -> u8 {
@@ -69,6 +74,7 @@ impl Mmu {
             ECHO_START ..= ECHO_END => self.wram.read(address - ECHO_START),
             OAM_START ..= OAM_END => self.oam.read(address - OAM_START),
             0xFEA0 ..= 0xFEFF => 0xFF, // Unusable returns this
+            0xFF00 => self.input.read_joypad(),
             0xFF40 => self.gpu.lcd_control,
             0xFF41 => self.gpu.lcdc_status,
             0xFF42 => self.gpu.scy,
@@ -109,7 +115,7 @@ impl Mmu {
             WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),
             ECHO_START ..= ECHO_END => self.wram.write(address - ECHO_START, value),
             OAM_START ..= OAM_END => self.oam.write(address - OAM_START, value),
-            0xFF00 => self.io.write(address - IO_START, value | 0xF), //joypad
+            0xFF00 => self.input.write_joypad(value),
             0xFEA0 ..= 0xFEFF => { /* Unusable */} ,
             0xFF40 => self.gpu.lcd_control = value,
             0xFF41 => self.gpu.lcdc_status = value & 0b11111000,
