@@ -74,7 +74,7 @@ impl Mmu {
             ECHO_START ..= ECHO_END => self.wram.read(address - ECHO_START),
             OAM_START ..= OAM_END => self.oam.read(address - OAM_START),
             0xFEA0 ..= 0xFEFF => 0xFF, // Unusable returns this
-            0xFF00 => self.input.read_joypad(),
+            IO_START => self.input.read_joypad(),
             0xFF40 => self.gpu.lcd_control,
             0xFF41 => self.gpu.lcdc_status,
             0xFF42 => self.gpu.scy,
@@ -114,17 +114,39 @@ impl Mmu {
             ERAM_START ..= ERAM_END => self.eram.write(address - ERAM_START, value),
             WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),
             ECHO_START ..= ECHO_END => self.wram.write(address - ECHO_START, value),
-            OAM_START ..= OAM_END => self.oam.write(address - OAM_START, value),
-            0xFF00 => self.input.write_joypad(value),
+            OAM_START ..= OAM_END => {
+                println!("oam");
+                self.oam.write(address - OAM_START, value);
+            },
             0xFEA0 ..= 0xFEFF => { /* Unusable */} ,
+            0xFF00 => self.input.write_joypad(value),
+            // 0xFF01 SB serial transfer data
+            // 0xFF02 SC serial transfer control
+            // 0xFF04 DIV divider register
+            // 0xFF05 TIMA timer counter
+            // 0xFF06 TMA timer modulo
+            // 0xFF07 TAC timer control
             0xFF40 => self.gpu.lcd_control = value,
             0xFF41 => self.gpu.lcdc_status = value & 0b11111000,
             0xFF42 => self.gpu.scy= value,
             0xFF43 => self.gpu.scx = value,
             0xFF44 => { /* No Writes to VRAM*/},
             0xFF45 => self.gpu.lyc = value,
+            // 0xFF46 => { println!("DMA {}", value); },
+            // 0xFF47 => self.gpu.bgp = value,
+            // 0xFF48 => self.gpu.obp0 = value,
+            // 0xFF49 => self.gpu.obp1 = value,
             0xFF4A => self.gpu.wy = value,
             0xFF4B => self.gpu.wx = value,
+            // 0xFF51 cgb hdma1
+            // 0xFF52 cgb hdma2
+            // 0xFF53 cgb hdma3
+            // 0xFF54 cgb hdma4
+            // 0xFF55 cgb hdma5
+            // 0xFF68 cgb bgpi
+            // 0xFF69 cgb pgpd
+            // 0xFF6A cgb spi
+            // 0xFF6a cgb spd
             IO_START ..= IO_END => self.io.write(address - IO_START, value),
             HRAM_START ..= HRAM_END => self.hram.write(address - HRAM_START, value),
             INTERUPTS_ENABLE => self.interupt_switch = value,
