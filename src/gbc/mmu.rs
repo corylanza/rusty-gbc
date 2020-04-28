@@ -22,13 +22,14 @@ const IO_END: u16 = 0xFF7F;
 const HRAM_START: u16 = 0xFF80;
 const HRAM_END: u16 = 0xFFFE;
 const INTERUPTS_ENABLE: u16 = 0xFFFF;
-const INTERUPT_REQUEST: u16 = 0xFF0F;
+pub const INTERUPT_REQUEST: u16 = 0xFF0F;
 
 
 pub struct Mmu {
     boot_rom: Vec<u8>,
     cartridge_rom: Rom,
     pub gpu: Gpu,
+    dma: Option<Dma>,
     eram: Ram,
     wram: Ram,
     oam: Ram,
@@ -45,6 +46,7 @@ impl Mmu {
             boot_rom: super::boot::load_rom(),
             cartridge_rom: Rom::new(filepath),
             gpu: gpu,
+            dma: None,
             eram: Ram::new(0x8000),
             wram: Ram::new(0x2000),
             oam: Ram::new(0xA0),
@@ -58,10 +60,14 @@ impl Mmu {
 
     pub fn mmu_step(&mut self, cycles: u8) {
         self.gpu.gpu_step(cycles);
-        let interrupt = self.read(INTERUPT_REQUEST) | self.gpu.interrupts | self.input.interrupt;
-        self.write(INTERUPT_REQUEST, interrupt);
+        self.interupt_switch |= self.gpu.interrupts | self.input.interrupt;
         self.gpu.interrupts = 0;
         self.input.interrupt = 0;
+        let dma = self.dma;
+        match dma {
+            Some(ref dma) => self.dma_step(*dma, cycles),
+            None => {}
+        };
     }
 
     pub fn read(&self, address: u16) -> u8 {
@@ -81,6 +87,10 @@ impl Mmu {
             0xFF43 => self.gpu.scx,
             0xFF44 => self.gpu.ly,
             0xFF45 => self.gpu.lyc,
+            0xFF46 => match &self.dma {
+                Some(dma) => dma.value,
+                None => 0
+            },
             0xFF4A => self.gpu.wy,
             0xFF4B => self.gpu.wx,
             IO_START ..= IO_END => self.io.read(address - IO_START),
@@ -115,7 +125,6 @@ impl Mmu {
             WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),
             ECHO_START ..= ECHO_END => self.wram.write(address - ECHO_START, value),
             OAM_START ..= OAM_END => {
-                println!("oam");
                 self.oam.write(address - OAM_START, value);
             },
             0xFEA0 ..= 0xFEFF => { /* Unusable */} ,
@@ -132,7 +141,7 @@ impl Mmu {
             0xFF43 => self.gpu.scx = value,
             0xFF44 => { /* No Writes to VRAM*/},
             0xFF45 => self.gpu.lyc = value,
-            // 0xFF46 => { println!("DMA {}", value); },
+            0xFF46 => { self.dma = Some(Dma::new(value)); },
             // 0xFF47 => self.gpu.bgp = value,
             // 0xFF48 => self.gpu.obp0 = value,
             // 0xFF49 => self.gpu.obp1 = value,
@@ -168,5 +177,40 @@ impl Mmu {
         let res = self.read_u16(regs.sp);
         regs.sp = regs.sp.wrapping_add(2);
         res
+    }
+
+    fn dma_step(&mut self, mut dma: Dma, cycles: u8) {
+        for _ in 0 ..= (cycles / 4) {
+            if dma.started && dma.address < 0xA0 {
+                let val = self.read(dma.source + dma.address as u16);
+                self.write(OAM_START + dma.address as u16, val);
+            } else if dma.started {
+                self.dma = None;
+                return
+            } else {
+                dma.started = true;
+            }
+            dma.address += 4;
+        }
+        self.dma = Some(dma);
+    }
+}
+
+#[derive(Copy, Clone)]
+struct Dma {
+    value: u8,
+    source: u16,
+    address: u8,
+    started: bool
+}
+
+impl Dma {
+    fn new(value: u8) -> Self {
+        Dma {
+            value: value,
+            source: (value as u16) << 8,
+            address: 0,
+            started: false
+        }
     }
 }
