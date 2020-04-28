@@ -32,7 +32,6 @@ pub struct Mmu {
     dma: Option<Dma>,
     eram: Ram,
     wram: Ram,
-    oam: Ram,
     pub input: Input,
     io: Ram,
     hram: Ram,
@@ -49,7 +48,6 @@ impl Mmu {
             dma: None,
             eram: Ram::new(0x8000),
             wram: Ram::new(0x2000),
-            oam: Ram::new(0xA0),
             input: Input::new(),
             io: Ram::new(0x80),
             hram: Ram::new(0x7F),
@@ -78,7 +76,7 @@ impl Mmu {
             ERAM_START ..= ERAM_END => self.eram.read(address - ERAM_START),
             WRAM_START ..= WRAM_END => self.wram.read(address - WRAM_START),
             ECHO_START ..= ECHO_END => self.wram.read(address - ECHO_START),
-            OAM_START ..= OAM_END => self.oam.read(address - OAM_START),
+            OAM_START ..= OAM_END => self.gpu.read_from_oam(address - OAM_START),
             0xFEA0 ..= 0xFEFF => 0xFF, // Unusable returns this
             IO_START => self.input.read_joypad(),
             0xFF40 => self.gpu.lcd_control,
@@ -124,9 +122,7 @@ impl Mmu {
             ERAM_START ..= ERAM_END => self.eram.write(address - ERAM_START, value),
             WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),
             ECHO_START ..= ECHO_END => self.wram.write(address - ECHO_START, value),
-            OAM_START ..= OAM_END => {
-                self.oam.write(address - OAM_START, value);
-            },
+            OAM_START ..= OAM_END => self.gpu.write_to_oam(address - OAM_START, value),
             0xFEA0 ..= 0xFEFF => { /* Unusable */} ,
             0xFF00 => self.input.write_joypad(value),
             // 0xFF01 SB serial transfer data

@@ -25,6 +25,7 @@ pub struct Gpu {
     //tileset_canvas: WindowCanvas,
     background_canvas: WindowCanvas,
     vram: [u8; 0x8000],
+    oam: [u8; 0xA0],
     tile_set: [Tile; 384],
     pub lcd_control: u8,
     pub lcdc_status: u8,
@@ -61,6 +62,7 @@ impl Gpu {
         Ok(Gpu {
             //tileset_canvas: tiles_window.into_canvas().build().unwrap(),
             background_canvas: bg,
+            oam: [0; 0xA0],
             vram: [0; 0x8000],
             tile_set: [empty_tile(); 384],
             lcd_control: 0,
@@ -226,20 +228,23 @@ impl Gpu {
         self.vram[address as usize]
     }
 
-    // pub fn write_to_oam(&mut self, value: u8) {
-    //     if self.lcd_control & OAM_SEARCH_MODE == LCD_TRANSFER_MODE
-    //         ||  self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
-    //         // cannot access OAM during OAM search or LCD Transfer
-    //         return;
-    //     }
-    // }
+    pub fn write_to_oam(&mut self, address: u16, value: u8) {
+        if self.lcd_control & OAM_SEARCH_MODE == LCD_TRANSFER_MODE
+            ||  self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
+            // cannot access OAM during OAM search or LCD Transfer
+            return;
+        } else {
+            self.oam[address as usize] = value;
+        }
+    }
 
-    // pub fn read_from_oam(&mut self) -> u8 {
-    //     if self.lcd_control & OAM_SEARCH_MODE == LCD_TRANSFER_MODE
-    //         ||  self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
-    //         // cannot access OAM during OAM search or LCD Transfer
-    //         return 0xFF;
-    //     }
-    //     0xff
-    // }
+    pub fn read_from_oam(&self, address: u16) -> u8 {
+        if self.lcd_control & OAM_SEARCH_MODE == LCD_TRANSFER_MODE
+            ||  self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
+            // cannot access OAM during OAM search or LCD Transfer
+            0xFF
+        } else {
+            self.oam[address as usize]
+        }
+    }
 }
