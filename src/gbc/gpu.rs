@@ -3,6 +3,7 @@ extern crate sdl2;
 use sdl2::render::WindowCanvas;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
+use std::time::{Duration, Instant};
 
 const SCREEN_WIDTH: u8 = 160;
 const SCREEN_HEIGHT: u8 = 144;
@@ -36,7 +37,9 @@ pub struct Gpu {
     pub wx: u8,
     buffer: Vec<u8>,
     cycle_count: usize,
-    pub interrupts: u8
+    pub interrupts: u8,
+    framecount: u32,
+    timer: Instant
 }
 
 type Tile = [[Color; 8]; 8];
@@ -73,12 +76,19 @@ impl Gpu {
             wx: 0,
             buffer: vec![0; BUFFER_SIZE],
             cycle_count: 0,
-            interrupts: 0
+            interrupts: 0,
+            framecount: 0,
+            timer: Instant::now()
         })
     }
 
     pub fn gpu_step(&mut self, cycles: u8) {
         self.cycle_count += cycles as usize;
+        if self.timer.elapsed().as_millis() > 1000 {
+            self.timer = Instant::now();
+            println!("fps {}", self.framecount);
+            self.framecount = 0;
+        }
 
         match self.cycle_count {
             0..=80 => { 
@@ -124,6 +134,8 @@ impl Gpu {
                         &*self.buffer,
                         BUFFER_WIDTH as usize * BYTES_PER_PIXEL as usize,
                     ).unwrap();
+                    
+                    self.framecount += 1;
 
                     self.background_canvas.copy(&texture, None, None).unwrap();
                     self.background_canvas.set_draw_color(Color::RGB(0, 0, 0));
