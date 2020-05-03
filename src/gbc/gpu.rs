@@ -268,8 +268,8 @@ impl Gpu {
     }
 
     pub fn write_to_oam(&mut self, address: u16, value: u8) {
-        if self.lcdc_status & 0b00000011 == OAM_SEARCH_MODE
-            ||  self.lcdc_status & 0b00000011 == LCD_TRANSFER_MODE {
+        if false /*self.lcdc_status & 0b00000011 == OAM_SEARCH_MODE
+            ||  self.lcdc_status & 0b00000011 == LCD_TRANSFER_MODE */ {
             // cannot access OAM during OAM search or LCD Transfer
             return;
         } else {
@@ -278,8 +278,8 @@ impl Gpu {
     }
 
     pub fn read_from_oam(&self, address: u16) -> u8 {
-        if self.lcdc_status & 0b00000011 == OAM_SEARCH_MODE
-            ||  self.lcdc_status & 0b00000011 == LCD_TRANSFER_MODE {
+        if false /*self.lcdc_status & 0b00000011 == OAM_SEARCH_MODE
+            ||  self.lcdc_status & 0b00000011 == LCD_TRANSFER_MODE*/ {
             // cannot access OAM during OAM search or LCD Transfer
             0xFF
         } else {

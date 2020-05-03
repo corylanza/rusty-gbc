@@ -178,15 +178,17 @@ impl Mmu {
     fn dma_step(&mut self, mut dma: Dma, cycles: u8) {
         for _ in 0 ..= (cycles / 4) {
             if dma.started && dma.address < 0xA0 {
+                //println!("{:04X} to {:04X}", dma.source + dma.address as u16, OAM_START + dma.address as u16);
                 let val = self.read(dma.source + dma.address as u16);
+                // TODO writes to OAM need to overide write
                 self.write(OAM_START + dma.address as u16, val);
+                dma.address += 1;
             } else if dma.started {
                 self.dma = None;
                 return
             } else {
                 dma.started = true;
             }
-            dma.address += 4;
         }
         self.dma = Some(dma);
     }
