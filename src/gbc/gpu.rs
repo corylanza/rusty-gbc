@@ -7,6 +7,8 @@ use std::time::{Duration, Instant};
 
 const SCREEN_WIDTH: u8 = 160;
 const SCREEN_HEIGHT: u8 = 144;
+const SPRITE_X_LIM: u8 = SCREEN_WIDTH + 8;
+const SPRITE_Y_LIM: u8 = SCREEN_HEIGHT + 16;
 
 const H_BLANK_MODE: u8 = 0;
 const V_BLANK_MODE: u8 = 1;
@@ -26,6 +28,7 @@ pub struct Gpu {
     //tileset_canvas: WindowCanvas,
     background_canvas: WindowCanvas,
     vram: [u8; 0x8000],
+    oam: [u8; 0xA0],
     tile_set: [Tile; 384],
     pub lcd_control: u8,
     pub lcdc_status: u8,
@@ -43,6 +46,13 @@ pub struct Gpu {
 }
 
 type Tile = [[Color; 8]; 8];
+
+struct Sprite {
+    y: u8,
+    x: u8,
+    tile_number: u8,
+    flags: u8
+}
 
 fn empty_tile() -> Tile {
     [[Color::RGB(0, 0, 0); 8]; 8]
@@ -64,6 +74,7 @@ impl Gpu {
         Ok(Gpu {
             //tileset_canvas: tiles_window.into_canvas().build().unwrap(),
             background_canvas: bg,
+            oam: [0; 0xA0],
             vram: [0; 0x8000],
             tile_set: [empty_tile(); 384],
             lcd_control: 0,
@@ -118,7 +129,7 @@ impl Gpu {
 
                 if self.ly == 154 {
                     self.ly = 0;
-                } else if self.ly >= SCREEN_HEIGHT && self.lcdc_status & V_BLANK_MODE != V_BLANK_MODE {
+                } else if self.ly >= SCREEN_HEIGHT && self.lcdc_status & 0b00000011 != V_BLANK_MODE {
                     self.set_lcdc_mode(V_BLANK_MODE);
                     self.interrupts |= 1;
 
@@ -137,6 +148,7 @@ impl Gpu {
                     
                     self.framecount += 1;
 
+                    self.display_sprites();
                     self.background_canvas.copy(&texture, None, None).unwrap();
                     self.background_canvas.set_draw_color(Color::RGB(0, 0, 0));
                     self.background_canvas.draw_rect(Rect::new(self.scx as i32, self.scy as i32, SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32)).unwrap();
@@ -203,11 +215,40 @@ impl Gpu {
         }
     }
 
-    pub fn write_to_vram(&mut self, address: u16, value: u8) {
-        if self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
-            // cannot access VRAM during LCD Transfer
-            return;
+    fn display_sprites(&mut self) {
+        for i in 0 .. 40 {
+            let sprite = self.get_sprite(i);
+            match (sprite.x, sprite.y) {
+                (1 ..= SPRITE_X_LIM, 1 ..= SPRITE_Y_LIM) => {
+                    let tile = self.get_sprite_tile(sprite.tile_number);
+                    render_tile(&mut self.background_canvas, tile, sprite.x as usize / 8, sprite.y as usize / 8, 1);
+                },
+                _ => {}
+            }
         }
+    }
+
+    fn get_sprite_tile(&self, tile_number: u8) -> Tile {
+        self.tile_set[tile_number as usize]
+    }
+
+    fn get_sprite(&self, n: u8) -> Sprite {
+        let idx = n * 4;
+        let sprite = &self.oam[idx as usize .. (idx + 4) as usize];
+        Sprite {
+            y: sprite[0],
+            x: sprite[1],
+            tile_number: sprite[2],
+            flags: sprite[3]
+        }
+
+    }
+
+    pub fn write_to_vram(&mut self, address: u16, value: u8) {
+        // if self.lcdc_status & 0b00000011 == LCD_TRANSFER_MODE {
+        //     // cannot access VRAM during LCD Transfer
+        //     return;
+        // }
         self.vram[address as usize] = value;
         if address >= 0x1800 {
             return; 
@@ -231,27 +272,30 @@ impl Gpu {
     }
 
     pub fn read_from_vram(&self, address: u16) -> u8 {
-        if self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
+        if self.lcdc_status & 0b00000011 == LCD_TRANSFER_MODE {
             // cannot access VRAM during LCD Transfer
             return 0xFF;
         }
         self.vram[address as usize]
     }
 
-    // pub fn write_to_oam(&mut self, value: u8) {
-    //     if self.lcd_control & OAM_SEARCH_MODE == LCD_TRANSFER_MODE
-    //         ||  self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
-    //         // cannot access OAM during OAM search or LCD Transfer
-    //         return;
-    //     }
-    // }
+    pub fn write_to_oam(&mut self, address: u16, value: u8) {
+        if false /*self.lcdc_status & 0b00000011 == OAM_SEARCH_MODE
+            ||  self.lcdc_status & 0b00000011 == LCD_TRANSFER_MODE */ {
+            // cannot access OAM during OAM search or LCD Transfer
+            return;
+        } else {
+            self.oam[address as usize] = value;
+        }
+    }
 
-    // pub fn read_from_oam(&mut self) -> u8 {
-    //     if self.lcd_control & OAM_SEARCH_MODE == LCD_TRANSFER_MODE
-    //         ||  self.lcd_control & LCD_TRANSFER_MODE == LCD_TRANSFER_MODE {
-    //         // cannot access OAM during OAM search or LCD Transfer
-    //         return 0xFF;
-    //     }
-    //     0xff
-    // }
+    pub fn read_from_oam(&self, address: u16) -> u8 {
+        if false /*self.lcdc_status & 0b00000011 == OAM_SEARCH_MODE
+            ||  self.lcdc_status & 0b00000011 == LCD_TRANSFER_MODE*/ {
+            // cannot access OAM during OAM search or LCD Transfer
+            0xFF
+        } else {
+            self.oam[address as usize]
+        }
+    }
 }
