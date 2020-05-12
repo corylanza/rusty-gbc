@@ -1,9 +1,11 @@
 use std::env;
 mod gbc;
 mod debugger;
+mod display;
 
 use gbc::Cpu;
 use debugger::Debugger;
+use display::{Display, SCREEN_HEIGHT};
 use gbc::gpu::Gpu;
 
 extern crate sdl2;
@@ -30,20 +32,23 @@ fn main() -> Result<(), String> {
             .build()
             .unwrap();
 
-        let tiles_window = video_subsystem.window("Tileset", 16 * 8 * 2, (384 / 16) * 8 * 2)
-            .position_centered()
-            .opengl()
-            .resizable()
-            .build()
-            .unwrap();
-        let mut tile_canvas = tiles_window.into_canvas()
-            .target_texture()
-            .present_vsync()
-            .accelerated()
-            .build()
-            .unwrap(); 
+        let tc = canvas.texture_creator();
+        let mut display = Display::new(canvas, &tc, 256, 256);
 
-        let gpu = Gpu::new(canvas).unwrap();
+        // let tiles_window = video_subsystem.window("Tileset", 16 * 8 * 2, (384 / 16) * 8 * 2)
+        //     .position_centered()
+        //     .opengl()
+        //     .resizable()
+        //     .build()
+        //     .unwrap();
+        // let mut tile_canvas = tiles_window.into_canvas()
+        //     .target_texture()
+        //     .present_vsync()
+        //     .accelerated()
+        //     .build()
+        //     .unwrap(); 
+
+        let gpu = Gpu::new().unwrap();
         let mut gbc = Cpu::new(&args[1], gpu);
 
         if args.len() > 2 {
@@ -63,9 +68,9 @@ fn main() -> Result<(), String> {
                     Event::KeyDown { keycode: Some(Keycode::L), .. } => {
                         gbc.log = !gbc.log;
                     },
-                    Event::KeyDown { keycode: Some(Keycode::T), .. } => {
-                        gbc.mem.gpu.render_tileset(&mut tile_canvas);
-                    },
+                    // Event::KeyDown { keycode: Some(Keycode::T), .. } => {
+                    //     gbc.mem.gpu.render_tileset(&mut tile_canvas);
+                    // },
                     Event::KeyDown { keycode: Some(Keycode::S), .. } => {
                         gbc.mem.input.key_pressed(gbc::input::Keycode::A);
                     },
@@ -121,7 +126,9 @@ fn main() -> Result<(), String> {
                 }
             }
             
-            gbc.cpu_step();
+            let cycles = gbc.step_cycles();
+            gbc.mem.gpu.gpu_step(&mut display, cycles);
+            gbc.mem.mmu_step(cycles);
         }
         Ok(())
     } else {
