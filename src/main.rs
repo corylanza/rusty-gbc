@@ -34,16 +34,7 @@ fn main() -> Result<(), String> {
             .unwrap();
 
         let tc = canvas.texture_creator();
-        let tex = tc.create_texture_streaming(
-            sdl2::pixels::PixelFormatEnum::ABGR8888,
-            256,
-            256,
-        ).unwrap();
-
-        let mut display = Display::new(tex, 256, 256);
-        display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
-
-        })?;
+        let mut display = Display::new(&tc, 256, 256);
 
         // let tiles_window = video_subsystem.window("Tileset", 16 * 8 * 2, (384 / 16) * 8 * 2)
         //     .position_centered()

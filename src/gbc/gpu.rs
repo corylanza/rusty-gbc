@@ -182,14 +182,14 @@ impl Gpu {
     //     self.background_canvas.present();
     // }
 
-    pub fn render_tileset(&mut self, tileset_canvas: &mut WindowCanvas) {
-        tileset_canvas.set_draw_color(Color::RGB(0xFF, 0xFF, 0xFF));
-        tileset_canvas.clear();
-        for tile in 0..384 {
-            render_tile(tileset_canvas, self.tile_set[tile], tile % 16, tile / 16, 2);
-        }
-        tileset_canvas.present();
-    }
+    // pub fn render_tileset(&mut self, tileset_canvas: &mut WindowCanvas) {
+    //     tileset_canvas.set_draw_color(Color::RGB(0xFF, 0xFF, 0xFF));
+    //     tileset_canvas.clear();
+    //     for tile in 0..384 {
+    //         render_tile(tileset_canvas, self.tile_set[tile], tile % 16, tile / 16, 2);
+    //     }
+    //     tileset_canvas.present();
+    // }
 
     fn get_bg_tile_at(&self, x: u8, y: u8) -> Tile {
         let address = y as u16 * 32 + x as u16;
