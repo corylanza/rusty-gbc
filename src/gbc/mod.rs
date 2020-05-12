@@ -95,12 +95,7 @@ impl Cpu {
         val
     }
 
-    pub fn cpu_step(&mut self) {
-        let cycles = self.step_cycles();
-        self.mem.mmu_step(cycles);
-    }
-
-    fn step_cycles(&mut self) -> u8 {
+    pub fn step_cycles(&mut self) -> u8 {
         if self.handle_interrupts() > 0 {
             return 20
         }

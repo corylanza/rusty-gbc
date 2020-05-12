@@ -57,7 +57,6 @@ impl Mmu {
     }
 
     pub fn mmu_step(&mut self, cycles: u8) {
-        self.gpu.gpu_step(cycles);
         self.interupt_switch |= self.gpu.interrupts | self.input.interrupt;
         self.gpu.interrupts = 0;
         self.input.interrupt = 0;

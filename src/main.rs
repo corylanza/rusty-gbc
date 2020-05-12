@@ -5,7 +5,7 @@ mod display;
 
 use gbc::Cpu;
 use debugger::Debugger;
-use display::Display;
+use display::{Display, SCREEN_HEIGHT, SCREEN_WIDTH};
 use gbc::gpu::Gpu;
 
 extern crate sdl2;
@@ -34,7 +34,7 @@ fn main() -> Result<(), String> {
             .unwrap();
 
         let tc = canvas.texture_creator();
-        let mut display = Display::new(&tc, 256, 256);
+        let mut display = Display::new(canvas, &tc, 256, 256);
 
         // let tiles_window = video_subsystem.window("Tileset", 16 * 8 * 2, (384 / 16) * 8 * 2)
         //     .position_centered()
@@ -49,7 +49,7 @@ fn main() -> Result<(), String> {
         //     .build()
         //     .unwrap(); 
 
-        let gpu = Gpu::new(canvas).unwrap();
+        let gpu = Gpu::new().unwrap();
         let mut gbc = Cpu::new(&args[1], gpu);
 
         if args.len() > 2 {
@@ -127,7 +127,9 @@ fn main() -> Result<(), String> {
                 }
             }
             
-            gbc.cpu_step();
+            let cycles = gbc.step_cycles();
+            gbc.mem.gpu.gpu_step(&mut display, cycles);
+            gbc.mem.mmu_step(cycles);
         }
         Ok(())
     } else {
