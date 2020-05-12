@@ -30,7 +30,7 @@ impl Display<'_> {
     }
 
     pub fn update_buffer(&mut self) {
-        self.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
+        self.texture.with_lock(None, |_buffer: &mut [u8], _pitch: usize| {
 
         }).unwrap();
     }

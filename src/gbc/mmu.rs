@@ -67,6 +67,7 @@ impl Mmu {
         };
     }
 
+    #[allow(overlapping_patterns)]
     pub fn read(&self, address: u16) -> u8 {
         let output = match address {
             0 ..= 0xFF if self.booting => self.boot_rom[address as usize],
@@ -102,6 +103,7 @@ impl Mmu {
         u16::from_le_bytes([self.read(address), self.read(address + 1)])
     }
 
+    #[allow(overlapping_patterns)]
     pub fn write(&mut self, address: u16, value: u8) {
         if address == 0xFF02 && value == 0x81 {
             match str::from_utf8(&[self.read(0xFF01)]) {

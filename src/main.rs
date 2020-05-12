@@ -5,12 +5,11 @@ mod display;
 
 use gbc::Cpu;
 use debugger::Debugger;
-use display::{Display, SCREEN_HEIGHT, SCREEN_WIDTH};
+use display::{Display, SCREEN_HEIGHT};
 use gbc::gpu::Gpu;
 
 extern crate sdl2;
 use sdl2::keyboard::Keycode;
-use sdl2::render::Texture;
 use sdl2::event::Event;
 
 fn main() -> Result<(), String> {

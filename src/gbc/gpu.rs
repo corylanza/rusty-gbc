@@ -1,7 +1,7 @@
 use sdl2::pixels::Color;
 
 use crate::Display;
-use crate::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use crate::SCREEN_HEIGHT;
 
 // const SPRITE_X_LIM: u8 = SCREEN_WIDTH + 8;
 // const SPRITE_Y_LIM: u8 = SCREEN_HEIGHT + 16;
@@ -15,10 +15,10 @@ const LCD_STATUS_LYC_LY_INTERRUPT_ENABLED: u8 = 64;
 
 
 const BYTES_PER_PIXEL: u8 = 4; // RGBA8888
-const BUFFER_HEIGHT: u16 = 256;
-const BUFFER_WIDTH: u16 = 256;
-const BUFFER_SIZE: usize =
-    (BUFFER_HEIGHT as usize * BUFFER_WIDTH as usize * BYTES_PER_PIXEL as usize);
+// const BUFFER_HEIGHT: u16 = 256;
+// const BUFFER_WIDTH: u16 = 256;
+// const BUFFER_SIZE: usize =
+//     (BUFFER_HEIGHT as usize * BUFFER_WIDTH as usize * BYTES_PER_PIXEL as usize);
 
 pub struct Gpu {
     //tileset_canvas: WindowCanvas,
@@ -34,7 +34,7 @@ pub struct Gpu {
     pub lyc: u8,
     pub wy: u8,
     pub wx: u8,
-    buffer: Vec<u8>,
+    //buffer: Vec<u8>,
     cycle_count: usize,
     pub interrupts: u8
 }
@@ -79,7 +79,7 @@ impl Gpu {
             lyc: 0,
             wy: 0,
             wx: 0,
-            buffer: vec![0; BUFFER_SIZE],
+            //buffer: vec![0; BUFFER_SIZE],
             cycle_count: 0,
             interrupts: 0
         })
@@ -101,7 +101,7 @@ impl Gpu {
                 /* SCANLINE*/ 
                 if self.lcdc_status & LCD_TRANSFER_MODE != LCD_TRANSFER_MODE {
                     self.set_lcdc_mode(LCD_TRANSFER_MODE);
-                    self.draw_scanline();
+                    self.draw_scanline(display);
                 }
 
             },
@@ -124,11 +124,11 @@ impl Gpu {
                     self.set_lcdc_mode(V_BLANK_MODE);
                     self.interrupts |= 1;
     
-                    display.texture.update(
-                        None,
-                        &*self.buffer,
-                        BUFFER_WIDTH as usize * BYTES_PER_PIXEL as usize,
-                    ).unwrap();
+                    // display.texture.update(
+                    //     None,
+                    //     &*self.buffer,
+                    //     BUFFER_WIDTH as usize * BYTES_PER_PIXEL as usize,
+                    // ).unwrap();
                     
                     //self.display_sprites();
                     display.render_frame(self.scx as i32, self.scy as i32);
@@ -141,18 +141,22 @@ impl Gpu {
         self.lcdc_status = (self.lcdc_status & 0b11111100) | mode;
     }
 
-    fn draw_scanline(&mut self) {
-        for x in 0..32 {
-            let tile = self.get_bg_tile_at(x, self.ly / 8);
-            for xx in 0..8 {
-                let buf_idx = ((self.ly as usize * 256) + ((x as usize * 8) + xx)) * BYTES_PER_PIXEL as usize;
-                let color = tile[(self.ly % 8)as usize][xx as usize];
-                (*self.buffer)[buf_idx] = color.b;
-                (*self.buffer)[buf_idx + 1] = color.g;
-                (*self.buffer)[buf_idx + 2] = color.r;
-                (*self.buffer)[buf_idx + 3] = color.a;
+    fn draw_scanline(&mut self, display: &mut Display) {
+        display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
+            for x in 0..32 {
+                let tile = self.get_bg_tile_at(x, self.ly / 8);
+                for xx in 0..8 {
+                    let buf_idx = (self.ly as usize * pitch) + (((x as usize * 8) + xx) * BYTES_PER_PIXEL as usize);
+                    let color = tile[(self.ly % 8)as usize][xx as usize];
+    
+                    buffer[buf_idx] = color.b;
+                    buffer[buf_idx + 1] = color.g;
+                    buffer[buf_idx + 2] = color.r;
+                    buffer[buf_idx + 3] = color.a;
+                }
             }
-        }
+        }).unwrap();
+        
     }
 
     // pub fn render_background(&mut self) {
