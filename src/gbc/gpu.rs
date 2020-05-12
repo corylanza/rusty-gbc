@@ -89,6 +89,10 @@ impl Gpu {
     }
 
     pub fn gpu_step(&mut self, cycles: u8) {
+        if self.lcd_control & 0b10000000 == 0 {
+            //println!("off");
+            return;
+        }
         self.cycle_count += cycles as usize;
 
         match self.cycle_count {

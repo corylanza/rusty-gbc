@@ -1,13 +1,16 @@
 use std::env;
 mod gbc;
 mod debugger;
+mod display;
 
 use gbc::Cpu;
 use debugger::Debugger;
+use display::Display;
 use gbc::gpu::Gpu;
 
 extern crate sdl2;
 use sdl2::keyboard::Keycode;
+use sdl2::render::Texture;
 use sdl2::event::Event;
 
 fn main() -> Result<(), String> {
@@ -30,18 +33,30 @@ fn main() -> Result<(), String> {
             .build()
             .unwrap();
 
-        let tiles_window = video_subsystem.window("Tileset", 16 * 8 * 2, (384 / 16) * 8 * 2)
-            .position_centered()
-            .opengl()
-            .resizable()
-            .build()
-            .unwrap();
-        let mut tile_canvas = tiles_window.into_canvas()
-            .target_texture()
-            .present_vsync()
-            .accelerated()
-            .build()
-            .unwrap(); 
+        let tc = canvas.texture_creator();
+        let tex = tc.create_texture_streaming(
+            sdl2::pixels::PixelFormatEnum::ABGR8888,
+            256,
+            256,
+        ).unwrap();
+
+        let mut display = Display::new(tex, 256, 256);
+        display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
+
+        })?;
+
+        // let tiles_window = video_subsystem.window("Tileset", 16 * 8 * 2, (384 / 16) * 8 * 2)
+        //     .position_centered()
+        //     .opengl()
+        //     .resizable()
+        //     .build()
+        //     .unwrap();
+        // let mut tile_canvas = tiles_window.into_canvas()
+        //     .target_texture()
+        //     .present_vsync()
+        //     .accelerated()
+        //     .build()
+        //     .unwrap(); 
 
         let gpu = Gpu::new(canvas).unwrap();
         let mut gbc = Cpu::new(&args[1], gpu);
@@ -63,9 +78,9 @@ fn main() -> Result<(), String> {
                     Event::KeyDown { keycode: Some(Keycode::L), .. } => {
                         gbc.log = !gbc.log;
                     },
-                    Event::KeyDown { keycode: Some(Keycode::T), .. } => {
-                        gbc.mem.gpu.render_tileset(&mut tile_canvas);
-                    },
+                    // Event::KeyDown { keycode: Some(Keycode::T), .. } => {
+                    //     gbc.mem.gpu.render_tileset(&mut tile_canvas);
+                    // },
                     Event::KeyDown { keycode: Some(Keycode::S), .. } => {
                         gbc.mem.input.key_pressed(gbc::input::Keycode::A);
                     },
