@@ -5,7 +5,7 @@ mod display;
 
 use gbc::Cpu;
 use debugger::Debugger;
-use display::{Display, SCREEN_HEIGHT};
+use display::{Display, SCREEN_HEIGHT, SCREEN_WIDTH};
 use gbc::gpu::Gpu;
 
 extern crate sdl2;
@@ -19,13 +19,13 @@ fn main() -> Result<(), String> {
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
 
-        let bg_window = video_subsystem.window("Background", 256, 256)
+        let window = video_subsystem.window("Rusty GBC", SCREEN_WIDTH as u32 * 3, SCREEN_HEIGHT as u32 * 3)
             .position_centered()
             .resizable()
             .build()
             .unwrap();
 
-        let canvas = bg_window.into_canvas()
+        let canvas = window.into_canvas()
             .target_texture()
             .present_vsync()
             .accelerated()
@@ -33,7 +33,7 @@ fn main() -> Result<(), String> {
             .unwrap();
 
         let tc = canvas.texture_creator();
-        let mut display = Display::new(canvas, &tc, 256, 256);
+        let mut display = Display::new(canvas, &tc, SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32);
 
         // let tiles_window = video_subsystem.window("Tileset", 16 * 8 * 2, (384 / 16) * 8 * 2)
         //     .position_centered()

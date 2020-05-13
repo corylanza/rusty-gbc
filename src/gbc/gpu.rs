@@ -2,7 +2,7 @@ use sdl2::pixels::Color;
 use std::time::Instant;
 
 use crate::Display;
-use crate::SCREEN_HEIGHT;
+use crate::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
 // const SPRITE_X_LIM: u8 = SCREEN_WIDTH + 8;
 // const SPRITE_Y_LIM: u8 = SCREEN_HEIGHT + 16;
@@ -143,7 +143,7 @@ impl Gpu {
                     self.framecount += 1;
                     
                     //self.display_sprites();
-                    display.render_frame(self.scx as i32, self.scy as i32);
+                    display.render_frame();
                 }
             }
         }
@@ -155,16 +155,19 @@ impl Gpu {
 
     fn draw_scanline(&mut self, display: &mut Display) {
         display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
+            let y = self.ly.wrapping_add(self.scy);
             for x in 0..32 {
-                let tile = self.get_bg_tile_at(x, self.ly / 8);
+                let tile = self.get_bg_tile_at(x, y / 8);
                 for xx in 0..8 {
-                    let buf_idx = (self.ly as usize * pitch) + (((x as usize * 8) + xx) * BYTES_PER_PIXEL as usize);
-                    let color = tile[(self.ly % 8)as usize][xx as usize];
-    
-                    buffer[buf_idx] = color.b;
-                    buffer[buf_idx + 1] = color.g;
-                    buffer[buf_idx + 2] = color.r;
-                    buffer[buf_idx + 3] = color.a;
+                    if (x * 8) + xx < SCREEN_WIDTH && self.ly < SCREEN_HEIGHT {
+                        let buf_idx = (self.ly as usize * pitch) + (((x as usize * 8) + xx as usize) * BYTES_PER_PIXEL as usize);
+                        let color = tile[(y % 8)as usize][xx as usize];
+        
+                        buffer[buf_idx] = color.b;
+                        buffer[buf_idx + 1] = color.g;
+                        buffer[buf_idx + 2] = color.r;
+                        buffer[buf_idx + 3] = color.a;
+                    }
                 }
             }
         }).unwrap();
