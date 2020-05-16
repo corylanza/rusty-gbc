@@ -6,7 +6,6 @@ const MEMORY_BANK_TYPE_ADDRESS: u16 = 0x0147;
 const TITLE_ADDRESS_MINUS_1: u16 = 0x0133;
 
 pub trait MemoryBank {
-    fn load_rom(&mut self, bytes: &Vec<u8>);
     fn write_rom(&mut self, address: u16, value: u8);
     fn write_ram(&mut self, address: u16, value: u8);
     fn read_rom(&self, address: u16) -> u8;
@@ -19,16 +18,11 @@ impl dyn MemoryBank {
         let mut buffer = Vec::<u8>::new();
         file.read_to_end(&mut buffer).unwrap();
 
-        let mut mbc = Box::new(match buffer[MEMORY_BANK_TYPE_ADDRESS as usize] {
-            0x00 => NoMBC { 
-                rom: [0; 0x8000],
-                ram: [0; 0x2000]
-                },
-            //0x01 => ,
+        match buffer[MEMORY_BANK_TYPE_ADDRESS as usize] {
+            0x00 => NoMBC::load_rom(&buffer),
+            0x01 => MBC1::load_rom(&buffer),
             _ => panic!("not implemented")
-        });
-        mbc.load_rom(&buffer);
-        mbc
+        }
     }
 
     pub fn print_metadata(&self) {
@@ -43,13 +37,20 @@ struct NoMBC {
     ram: [u8; 0x2000]
 }
 
-impl MemoryBank for NoMBC {
-    fn load_rom(&mut self, bytes: &Vec<u8>) {
+impl NoMBC {
+    fn load_rom(bytes: &Vec<u8>) -> Box<dyn MemoryBank> {
+        let mut mbc = Box::new(NoMBC { 
+            rom: [0; 0x8000],
+            ram: [0; 0x2000]
+        });
         for (idx, byte) in bytes.iter().enumerate() {
-            self.rom[idx] = *byte;
+            mbc.rom[idx] = *byte;
         }
+        mbc
     }
+}
 
+impl MemoryBank for NoMBC {
     fn write_rom(&mut self, _address: u16, _value: u8) {
 
     }
@@ -74,11 +75,21 @@ struct MBC1 {
     selected_ram: u8,
 }
 
-impl MemoryBank for MBC1 {
-    fn load_rom(&mut self, _bytes: &Vec<u8>) {
-
+impl MBC1 {
+    fn load_rom(_bytes: &Vec<u8>) -> Box<dyn MemoryBank> {
+        let mbc = Box::new(MBC1 {
+            rom_banks: [[0; 0x4000]; 0x80],
+            ram_banks: [[0; 0x2000]; 4],
+            selected_rom: 0,
+            ram_enabled: false,
+            ram_banking_mode: false,
+            selected_ram: 0,
+        });
+        mbc
     }
+}
 
+impl MemoryBank for MBC1 {
     fn write_rom(&mut self, address: u16, value: u8) {
         match address {
             0 ..= 0x1FFF => {
