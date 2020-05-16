@@ -18,10 +18,11 @@ impl dyn MemoryBank {
         let mut buffer = Vec::<u8>::new();
         file.read_to_end(&mut buffer).unwrap();
 
-        match buffer[MEMORY_BANK_TYPE_ADDRESS as usize] {
-            0x00 => NoMBC::load_rom(&buffer),
-            0x01 => Box::new(MBC1::load_rom(&buffer)),
-            _ => panic!("not implemented")
+        let mbc_type = buffer[MEMORY_BANK_TYPE_ADDRESS as usize];
+        match mbc_type {
+            0 => NoMBC::load_rom(&buffer),
+            1..=3 => Box::new(MBC1::load_rom(&buffer)),
+            _ => panic!("not implemented {}", mbc_type)
         }
     }
 
@@ -77,6 +78,7 @@ struct MBC1 {
 
 impl MBC1 {
     fn load_rom(bytes: &Vec<u8>) -> MBC1 {
+        println!("MBC1");
         let mut mbc = MBC1 {
             rom_banks: vec![0; 0x4000 * 0x80],//[[0; 0x4000]; 0x80],
             ram_banks: vec![0; 0x2000 * 4],//[[0; 0x2000]; 4],
