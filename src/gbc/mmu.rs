@@ -1,6 +1,7 @@
 use super::Registers;
 use super::memory::rom::Rom;
 use super::memory::ram::Ram;
+use super::memory::mbc::MemoryBank;
 use std::str;
 use super::gpu::Gpu;
 use super::input::Input;
@@ -27,10 +28,9 @@ pub const INTERUPT_REQUEST: u16 = 0xFF0F;
 
 pub struct Mmu {
     boot_rom: Vec<u8>,
-    cartridge_rom: Rom,
     pub gpu: Gpu,
     dma: Option<Dma>,
-    eram: Ram,
+    mbc: Box<dyn MemoryBank>,
     wram: Ram,
     pub input: Input,
     io: Ram,
@@ -41,12 +41,13 @@ pub struct Mmu {
 
 impl Mmu {
     pub fn new(filepath: &str, gpu: Gpu) -> Mmu {
+        let mbc = MemoryBank::new(filepath);
+        mbc.print_metadata();
         Mmu {
             boot_rom: super::boot::load_rom(),
-            cartridge_rom: Rom::new(filepath),
+            mbc: mbc,
             gpu: gpu,
             dma: None,
-            eram: Ram::new(0x8000),
             wram: Ram::new(0x2000),
             input: Input::new(),
             io: Ram::new(0x80),
@@ -71,9 +72,9 @@ impl Mmu {
     pub fn read(&self, address: u16) -> u8 {
         let output = match address {
             0 ..= 0xFF if self.booting => self.boot_rom[address as usize],
-            ROM_START ..= ROM_END => self.cartridge_rom.read(address),
+            ROM_START ..= ROM_END => self.mbc.read_rom(address),
             VRAM_START ..= VRAM_END => self.gpu.read_from_vram(address - VRAM_START),
-            ERAM_START ..= ERAM_END => self.eram.read(address - ERAM_START),
+            ERAM_START ..= ERAM_END => self.mbc.read_ram(address - ERAM_START),
             WRAM_START ..= WRAM_END => self.wram.read(address - WRAM_START),
             ECHO_START ..= ECHO_END => self.wram.read(address - ECHO_START),
             OAM_START ..= OAM_END => self.gpu.read_from_oam(address - OAM_START),
@@ -95,7 +96,7 @@ impl Mmu {
             HRAM_START ..= HRAM_END => self.hram.read(address - HRAM_START),
             INTERUPTS_ENABLE => self.interupt_switch
         };
-        //println!("read {:02X} from address {:04X}", output, address);
+        
         output
     }
 
@@ -112,15 +113,14 @@ impl Mmu {
             }
         }
         if self.booting && address == 0xFF50 {
-            println!("boot complete");
             self.booting = false;
-            self.cartridge_rom.print_metadata();
+            self.mbc.print_metadata();
         }
-        //println!("writing {:02X} to address {:04X}", value, address);
+
         match address {
-            ROM_START ..= ROM_END => {},//println!("writing {:02X} to ROM address {:04X}", value, address),
+            ROM_START ..= ROM_END => self.mbc.write_rom(address, value),
             VRAM_START ..= VRAM_END => self.gpu.write_to_vram(address - VRAM_START, value),
-            ERAM_START ..= ERAM_END => self.eram.write(address - ERAM_START, value),
+            ERAM_START ..= ERAM_END => self.mbc.write_ram(address - ERAM_START, value),
             WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),
             ECHO_START ..= ECHO_END => self.wram.write(address - ECHO_START, value),
             OAM_START ..= OAM_END => self.gpu.write_to_oam(address - OAM_START, value),
