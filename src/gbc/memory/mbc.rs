@@ -110,9 +110,9 @@ impl MemoryBank for MBC1 {
             },
             0x4000 ..= 0x5FFF => {
                 if self.ram_banking_mode {
-                    self.selected_ram = value & 0b00000011;
+                    self.selected_ram = (self.selected_rom & 0b00000011) | (value & 0b00000011);
                 } else {
-                    panic!("ROM bank upper 2 bits not implemented")
+                    self.selected_rom = (self.selected_rom & 0b10011111) | ((value & 0b00000011) << 5)
                 }
             },
             0x6000 ..= 0x7FFF => {
