@@ -20,7 +20,7 @@ impl dyn MemoryBank {
 
         match buffer[MEMORY_BANK_TYPE_ADDRESS as usize] {
             0x00 => NoMBC::load_rom(&buffer),
-            0x01 => MBC1::load_rom(&buffer),
+            0x01 => Box::new(MBC1::load_rom(&buffer)),
             _ => panic!("not implemented")
         }
     }
@@ -66,8 +66,8 @@ impl MemoryBank for NoMBC {
 }
 
 struct MBC1 {
-    rom_banks: [[u8; 0x4000]; 0x80],
-    ram_banks: [[u8; 0x2000]; 4],
+    rom_banks: Vec<u8>,//[[u8; 0x4000]; 0x80],
+    ram_banks: Vec<u8>,//[[u8; 0x2000]; 4],
     selected_rom: u8,
     ram_enabled: bool,
     /// ROM banking mode if false, RAM banking mode if true
@@ -76,15 +76,18 @@ struct MBC1 {
 }
 
 impl MBC1 {
-    fn load_rom(_bytes: &Vec<u8>) -> Box<dyn MemoryBank> {
-        let mbc = Box::new(MBC1 {
-            rom_banks: [[0; 0x4000]; 0x80],
-            ram_banks: [[0; 0x2000]; 4],
+    fn load_rom(bytes: &Vec<u8>) -> MBC1 {
+        let mut mbc = MBC1 {
+            rom_banks: vec![0; 0x4000 * 0x80],//[[0; 0x4000]; 0x80],
+            ram_banks: vec![0; 0x2000 * 4],//[[0; 0x2000]; 4],
             selected_rom: 0,
             ram_enabled: false,
             ram_banking_mode: false,
             selected_ram: 0,
-        });
+        };
+        for (idx, byte) in bytes.iter().enumerate() {
+            mbc.rom_banks[idx] = *byte;
+        }
         mbc
     }
 }
@@ -119,16 +122,16 @@ impl MemoryBank for MBC1 {
         }
     }
     fn write_ram(&mut self, address: u16, value: u8) {
-        self.ram_banks[self.selected_ram as usize][address as usize] = value
+        self.ram_banks[self.selected_ram as usize * 0x2000 + address as usize] = value
     }
     fn read_rom(&self, address: u16) -> u8 {
         match address {
-            0 ..= 0x3FFF => self.rom_banks[0][address as usize],
-            0x4000 ..= 0x7FFF => self.rom_banks[self.selected_rom as usize][address as usize],
+            0 ..= 0x3FFF => self.rom_banks[address as usize],
+            0x4000 ..= 0x7FFF => self.rom_banks[self.selected_rom as usize * 0x4000 + address as usize],
             _ => panic!("ROM goes only to 0x7FFF, tried to read outside bounds")
         }
     }
     fn read_ram(&self, address: u16) -> u8 {
-        self.ram_banks[self.selected_ram as usize][address as usize]
+        self.ram_banks[self.selected_ram as usize * 0x2000 + address as usize]
     }
 }
