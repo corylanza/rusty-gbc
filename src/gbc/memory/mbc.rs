@@ -19,8 +19,6 @@ impl dyn MemoryBank {
         let mut buffer = Vec::<u8>::new();
         file.read_to_end(&mut buffer).unwrap();
 
-        println!("{}", str::from_utf8(&buffer[0x0134..0x0143]).unwrap());
-
         let mut mbc = Box::new(match buffer[MEMORY_BANK_TYPE_ADDRESS as usize] {
             0x00 => NoMBC { 
                 rom: [0; 0x8000],
@@ -34,8 +32,8 @@ impl dyn MemoryBank {
     }
 
     pub fn print_metadata(&self) {
-        //let bytes: Vec<u8> = (1..16).map(|x| self.read_rom(TITLE_ADDRESS_MINUS_1 + x)).value.collect();
-        //println!("Title {}", str::from_utf8(&bytes).unwrap());
+        let bytes: Vec<u8> = (1..16).map(|x| self.read_rom(TITLE_ADDRESS_MINUS_1 + x)).collect();
+        println!("{}", str::from_utf8(&bytes).unwrap());
     }
 }
 
@@ -59,7 +57,7 @@ impl MemoryBank for NoMBC {
         self.ram[address as usize] = value;
     }
     fn read_rom(&self, address: u16) -> u8 {
-        self.rom[address as usize].wrapping_add(97)
+        self.rom[address as usize]
     }
     fn read_ram(&self, address: u16) -> u8 {
         self.ram[address as usize]
@@ -77,7 +75,7 @@ struct MBC1 {
 }
 
 impl MemoryBank for MBC1 {
-    fn load_rom(&mut self, bytes: &Vec<u8>) {
+    fn load_rom(&mut self, _bytes: &Vec<u8>) {
 
     }
 

@@ -42,7 +42,6 @@ pub struct Mmu {
 impl Mmu {
     pub fn new(filepath: &str, gpu: Gpu) -> Mmu {
         let mbc = MemoryBank::new(filepath);
-        mbc.print_metadata();
         Mmu {
             boot_rom: super::boot::load_rom(),
             mbc: mbc,
