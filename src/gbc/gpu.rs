@@ -127,10 +127,10 @@ impl Gpu {
                 
                 if self.updated {
                     self.display_sprites(display);
+                    display.render_frame();
                 }
                 
                 self.updated = false;
-                display.render_frame();
             }
             if self.cycle_count > 456 {
                 self.ly += 1;

@@ -9,4 +9,5 @@ edition = "2018"
 [dependencies]
 hex = "0.4.2"
 text_io = "0.1.8"
+rand = "0.5"
 sdl2 = "0.33"

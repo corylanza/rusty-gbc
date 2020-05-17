@@ -1,7 +1,10 @@
+extern crate rand;
+
 use super::Registers;
 use super::memory::ram::Ram;
 use super::memory::mbc::MemoryBank;
 use std::str;
+use rand::{Rng};
 use super::gpu::Gpu;
 use super::input::Input;
 
@@ -79,6 +82,8 @@ impl Mmu {
             OAM_START ..= OAM_END => self.gpu.read_from_oam(address - OAM_START),
             0xFEA0 ..= 0xFEFF => 0xFF, // Unusable returns this
             IO_START => self.input.read_joypad(),
+            // DIV register
+            0xFF04 => rand::thread_rng().gen_range(0, 0xFF),
             0xFF40 => self.gpu.get_lcdc_control(),
             0xFF41 => self.gpu.get_lcdc_status(),
             0xFF42 => self.gpu.get_scy(),
