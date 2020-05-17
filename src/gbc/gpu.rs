@@ -22,6 +22,11 @@ const LCD_STATUS_LYC_LY_INTERRUPT_ENABLED: u8 = 64;
 
 const BYTES_PER_PIXEL: u8 = 4; // RGBA8888
 
+const WHITE: Color = Color::RGB(0xE6, 0xFF, 0xE6);
+const LIGHT_GRAY: Color = Color::RGB(0x00, 0x80, 0x40);
+const DARK_GRAY: Color = Color::RGB(0x70, 0xDB, 0x70);
+const BLACK: Color = Color::RGB(0x00, 0x00, 0x00);
+
 pub struct Gpu {
     vram: [u8; 0x8000],
     oam: [u8; 0xA0],
@@ -33,7 +38,10 @@ pub struct Gpu {
     ly: u8,
     lyc: u8,
     wy: u8,
-    wx: u8,
+    wx: u8,            
+    bgp: u8,
+    obp0: u8,
+    obp1: u8,
     cycle_count: usize,
     pub interrupts: u8,
     updated: bool,
@@ -68,6 +76,9 @@ impl Gpu {
             lyc: 0,
             wy: 0,
             wx: 0,
+            bgp: 0,
+            obp0: 0,
+            obp1: 0,
             cycle_count: 0,
             interrupts: 0,
             updated: true,
@@ -177,6 +188,18 @@ impl Gpu {
 
     pub fn set_wx(&mut self, value: u8) { self.wx = value; self.updated() }
     pub fn get_wx(&self) -> u8 { self.wx }
+
+    pub fn set_bgp(&mut self, value: u8) { self.bgp = value; self.updated() }
+    pub fn get_bgp(&self) -> u8 { self.bgp }
+
+    pub fn set_obp0(&mut self, value: u8) { self.obp0 = value; self.updated() }
+    pub fn get_obp0(&self) -> u8 { self.obp0 }
+
+    pub fn set_obp1(&mut self, value: u8) { self.obp1 = value; self.updated() }
+    pub fn get_obp1(&self) -> u8 { self.obp1 }
+
+
+
 
     fn draw_scanline(&mut self, display: &mut Display) {
         display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
@@ -315,10 +338,10 @@ impl Gpu {
         for pixel in 0..8 {
             let mask = 1 << (7 - pixel);
             self.tile_set[tile][row][pixel] = match (byte1 & mask != 0, byte2 & mask != 0) {
-                (true, true) => Color::RGB(0x00, 0x00, 0x00),
-                (false, true) => Color::RGB(0x00, 0x80, 0x40),
-                (true, false) => Color::RGB(0x70, 0xDB, 0x70),
-                (false, false) => Color::RGB(0xE6, 0xFF, 0xE6),
+                (true, true) => BLACK,
+                (false, true) => LIGHT_GRAY,
+                (true, false) => DARK_GRAY,
+                (false, false) => WHITE,
             };
         }
     }

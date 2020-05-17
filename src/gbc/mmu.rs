@@ -94,6 +94,9 @@ impl Mmu {
                 Some(dma) => dma.value,
                 None => 0
             },
+            0xFF47 => self.gpu.get_bgp(),
+            0xFF48 => self.gpu.get_obp0(),
+            0xFF49 => self.gpu.get_obp1(),
             0xFF4A => self.gpu.get_wy(),
             0xFF4B => self.gpu.get_wx(),
             IO_START ..= IO_END => self.io.read(address - IO_START),
@@ -143,9 +146,9 @@ impl Mmu {
             0xFF44 => { /* No Writes to VRAM*/},
             0xFF45 => self.gpu.set_lyc(value),
             0xFF46 => { self.dma = Some(Dma::new(value)); },
-            // 0xFF47 => self.gpu.bgp = value,
-            // 0xFF48 => self.gpu.obp0 = value,
-            // 0xFF49 => self.gpu.obp1 = value,
+            0xFF47 => self.gpu.set_bgp(value),
+            0xFF48 => self.gpu.set_obp0(value),
+            0xFF49 => self.gpu.set_obp1(value),
             0xFF4A => self.gpu.set_wy(value),
             0xFF4B => self.gpu.set_wx(value),
             // 0xFF51 cgb hdma1
