@@ -4,8 +4,8 @@ use std::time::Instant;
 use crate::Display;
 use crate::{SCREEN_HEIGHT, SCREEN_WIDTH};
 
-// const SPRITE_X_LIM: u8 = SCREEN_WIDTH + 8;
-// const SPRITE_Y_LIM: u8 = SCREEN_HEIGHT + 16;
+const SPRITE_X_LIM: u8 = SCREEN_WIDTH + 8;
+const SPRITE_Y_LIM: u8 = SCREEN_HEIGHT + 16;
 
 const H_BLANK_MODE: u8 = 0;
 const V_BLANK_MODE: u8 = 1;
@@ -16,14 +16,8 @@ const LCD_STATUS_LYC_LY_INTERRUPT_ENABLED: u8 = 64;
 
 
 const BYTES_PER_PIXEL: u8 = 4; // RGBA8888
-// const BUFFER_HEIGHT: u16 = 256;
-// const BUFFER_WIDTH: u16 = 256;
-// const BUFFER_SIZE: usize =
-//     (BUFFER_HEIGHT as usize * BUFFER_WIDTH as usize * BYTES_PER_PIXEL as usize);
 
 pub struct Gpu {
-    //tileset_canvas: WindowCanvas,
-    //background_canvas: WindowCanvas,
     vram: [u8; 0x8000],
     oam: [u8; 0xA0],
     tile_set: [Tile; 384],
@@ -44,33 +38,20 @@ pub struct Gpu {
 
 type Tile = [[Color; 8]; 8];
 
-// struct Sprite {
-//     y: u8,
-//     x: u8,
-//     tile_number: u8,
-//     flags: u8
-// }
+struct Sprite {
+    y: u8,
+    x: u8,
+    tile_number: u8,
+    flags: u8
+}
 
 fn empty_tile() -> Tile {
     [[Color::RGB(0, 0, 0); 8]; 8]
 }
 
-// fn render_tile(canvas: &mut WindowCanvas, tile: Tile, x: usize, y: usize, scale: u32) {
-//     for row in 0..8 {
-//         for pixel in 0..8 {
-//             let real_x = (x as u32 * 8 * scale) + (pixel * scale);
-//             let real_y = (y as u32 * 8 * scale) + (row * scale);
-//             canvas.set_draw_color(tile[row as usize][pixel as usize]);
-//             canvas.fill_rect(Rect::new(real_x as i32, real_y as i32, scale, scale)).unwrap();
-//         }
-//     }
-// }
-
 impl Gpu {
     pub fn new() -> Result<Self, String> {
         Ok(Gpu {
-            //tileset_canvas: tiles_window.into_canvas().build().unwrap(),
-            //background_canvas: bg,
             oam: [0; 0xA0],
             vram: [0; 0x8000],
             tile_set: [empty_tile(); 384],
@@ -82,7 +63,6 @@ impl Gpu {
             lyc: 0,
             wy: 0,
             wx: 0,
-            //buffer: vec![0; BUFFER_SIZE],
             cycle_count: 0,
             interrupts: 0,
             framecount: 0,
@@ -92,7 +72,6 @@ impl Gpu {
 
     pub fn gpu_step(&mut self, display: &mut Display, cycles: u8) {
         if self.lcd_control & 0b10000000 == 0 {
-            //println!("off");
             return;
         }
         self.cycle_count += cycles as usize;
@@ -137,7 +116,7 @@ impl Gpu {
                 
                 self.framecount += 1;
                 
-                //self.display_sprites();
+                self.display_sprites(display);
                 display.render_frame();
             }
             if self.cycle_count > 456 {
@@ -218,34 +197,51 @@ impl Gpu {
         }
     }
 
-    // fn display_sprites(&mut self) {
-    //     for i in 0 .. 40 {
-    //         let sprite = self.get_sprite(i);
-    //         match (sprite.x, sprite.y) {
-    //             (1 ..= SPRITE_X_LIM, 1 ..= SPRITE_Y_LIM) => {
-    //                 let tile = self.get_sprite_tile(sprite.tile_number);
-    //                 render_tile(&mut self.background_canvas, tile, sprite.x as usize / 8, sprite.y as usize / 8, 1);
-    //             },
-    //             _ => {}
-    //         }
-    //     }
-    // }
+    fn display_sprites(&mut self, display: &mut Display) {
+        for i in 0 .. 40 {
+            let sprite = self.get_sprite(i);
+            match (sprite.x, sprite.y) {
+                (1 ..= SPRITE_X_LIM, 1 ..= SPRITE_Y_LIM) => {
+                    let tile = self.get_sprite_tile(sprite.tile_number);
+                    display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
+                        //let y = self.ly.wrapping_add(self.scy);
+                        for x in 0..8 {
+                            let sprite_x = (sprite.x as usize) + x;
+                            if  sprite_x > 0 && sprite_x < SCREEN_WIDTH as usize {
+                                for y in 0..8 {
+                                    let sprite_y = (sprite.y as usize) + y;
+                                    let buf_idx = (sprite_y * pitch) + (sprite_x * BYTES_PER_PIXEL as usize);
+                                    let color = tile[y as usize][x as usize];
+                        
+                                    buffer[buf_idx] = color.b;
+                                    buffer[buf_idx + 1] = color.g;
+                                    buffer[buf_idx + 2] = color.r;
+                                    buffer[buf_idx + 3] = color.a;
+                                }
+                            }
+                        }
+                    }).unwrap();
+                },
+                _ => {}
+            }
+        }
+    }
 
-    // fn get_sprite_tile(&self, tile_number: u8) -> Tile {
-    //     self.tile_set[tile_number as usize]
-    // }
+    fn get_sprite_tile(&self, tile_number: u8) -> Tile {
+        self.tile_set[tile_number as usize]
+    }
 
-    // fn get_sprite(&self, n: u8) -> Sprite {
-    //     let idx = n * 4;
-    //     let sprite = &self.oam[idx as usize .. (idx + 4) as usize];
-    //     Sprite {
-    //         y: sprite[0],
-    //         x: sprite[1],
-    //         tile_number: sprite[2],
-    //         flags: sprite[3]
-    //     }
+    fn get_sprite(&self, n: u8) -> Sprite {
+        let idx = n * 4;
+        let sprite = &self.oam[idx as usize .. (idx + 4) as usize];
+        Sprite {
+            y: sprite[0],
+            x: sprite[1],
+            tile_number: sprite[2],
+            flags: sprite[3]
+        }
 
-    // }
+    }
 
     pub fn write_to_vram(&mut self, address: u16, value: u8) {
         // if self.lcdc_status & 0b00000011 == LCD_TRANSFER_MODE {
