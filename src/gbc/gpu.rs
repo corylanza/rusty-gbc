@@ -206,11 +206,12 @@ impl Gpu {
                     display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
                         //let y = self.ly.wrapping_add(self.scy);
                         for x in 0..8 {
-                            let sprite_x = (sprite.x as usize) + x;
-                            if  sprite_x > 0 && sprite_x < SCREEN_WIDTH as usize {
-                                for y in 0..8 {
-                                    let sprite_y = (sprite.y as usize) + y;
-                                    let buf_idx = (sprite_y * pitch) + (sprite_x * BYTES_PER_PIXEL as usize);
+                            let sprite_x = (sprite.x.wrapping_sub(8) as usize) + x;
+                            
+                            for y in 0..8 {
+                                let sprite_y = (sprite.y.wrapping_sub(16) as usize) + y;
+                                if  sprite_x < SCREEN_WIDTH as usize && sprite_y < SCREEN_HEIGHT as usize {
+                                    let buf_idx = ((sprite_y) * pitch) + ((sprite_x)* BYTES_PER_PIXEL as usize);
                                     let color = tile[y as usize][x as usize];
                         
                                     buffer[buf_idx] = color.b;
