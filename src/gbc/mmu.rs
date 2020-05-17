@@ -22,7 +22,7 @@ const IO_START: u16 = 0xFF00;
 const IO_END: u16 = 0xFF7F;
 const HRAM_START: u16 = 0xFF80;
 const HRAM_END: u16 = 0xFFFE;
-const INTERUPTS_ENABLE: u16 = 0xFFFF;
+pub const INTERUPTS_ENABLE: u16 = 0xFFFF;
 pub const INTERUPT_REQUEST: u16 = 0xFF0F;
 
 
@@ -57,7 +57,8 @@ impl Mmu {
     }
 
     pub fn mmu_step(&mut self, cycles: u8) {
-        self.interupt_switch |= self.gpu.interrupts | self.input.interrupt;
+        let int = self.read(INTERUPT_REQUEST) | self.gpu.interrupts | self.input.interrupt;
+        self.write(INTERUPT_REQUEST, int);
         self.gpu.interrupts = 0;
         self.input.interrupt = 0;
         let dma = self.dma;

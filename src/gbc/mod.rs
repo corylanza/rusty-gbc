@@ -39,7 +39,7 @@ impl Cpu {
 
     fn handle_interrupts(&mut self) -> u8 {
         // TODO interrupts take 20 cycles to handle (+ 4 if in halt mode)
-        let int_enable = self.mem.read(0xFFFF);
+        let int_enable = self.mem.read(mmu::INTERUPTS_ENABLE);
         let int_request = self.mem.read(mmu::INTERUPT_REQUEST);
         for flag in vec![1, 2, 4, 8, 16] {
             if self.handle_interrupt(flag, int_enable, int_request) {
@@ -54,7 +54,7 @@ impl Cpu {
             self.halted = false;
             if self.ime {
                 self.ime = false;
-                self.mem.write(0xFF0F, requested ^ flag);
+                self.mem.write(mmu::INTERUPT_REQUEST, requested ^ flag);
                 let pc = self.regs.pc;
                 self.mem.push_u16(&mut self.regs, pc);
                 self.regs.pc = match flag {

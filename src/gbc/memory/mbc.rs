@@ -107,7 +107,7 @@ impl MemoryBank for MBC1 {
                     0x20 => self.selected_rom = 0x21,
                     0x40 => self.selected_rom = 0x41,
                     0x60 => self.selected_rom = 0x61,
-                    _ => self.selected_rom = value & 0b00011111
+                    _ => self.selected_rom = (self.selected_rom & 0b01100000) | (value & 0b00011111)
                 }
             },
             0x4000 ..= 0x5FFF => {
@@ -124,7 +124,10 @@ impl MemoryBank for MBC1 {
         }
     }
     fn write_ram(&mut self, address: u16, value: u8) {
-        self.ram_banks[self.selected_ram as usize * 0x2000 + address as usize] = value
+        match self.ram_enabled {
+            true => self.ram_banks[self.selected_ram as usize * 0x2000 + address as usize] = value,
+            false => {}
+        }
     }
     fn read_rom(&self, address: u16) -> u8 {
         match address {
@@ -134,6 +137,9 @@ impl MemoryBank for MBC1 {
         }
     }
     fn read_ram(&self, address: u16) -> u8 {
-        self.ram_banks[self.selected_ram as usize * 0x2000 + address as usize]
+        match self.ram_enabled {
+            true => self.ram_banks[self.selected_ram as usize * 0x2000 + address as usize],
+            false => 0xFF
+        }
     }
 }
