@@ -102,55 +102,60 @@ impl Gpu {
             self.framecount = 0;
         }
 
-        match self.cycle_count {
-            0..=80 => { 
-                /* OAM SEARCH */
-                self.set_lcdc_mode(OAM_SEARCH_MODE);
-            },
-            80..=252 => {
-                /* SCANLINE*/ 
-                if self.lcdc_status & LCD_TRANSFER_MODE != LCD_TRANSFER_MODE {
-                    self.set_lcdc_mode(LCD_TRANSFER_MODE);
-                    self.draw_scanline(display);
-                }
+        if self.lcdc_status & LCD_STATUS_LYC_LY_INTERRUPT_ENABLED > 0 && self.lyc == self.ly  {
+            self.lcdc_status |= LCD_STATUS_COINCIDENCE_FLAG;
+            self.interrupts |= 2;
+        }
 
-            },
-            252..=456 => {
-                /* H-Blank*/ 
+        if self.ly < SCREEN_HEIGHT {
+            match self.cycle_count {
+                0..=80 => {
+                    /* OAM SEARCH */
+                    self.set_lcdc_mode(OAM_SEARCH_MODE);
+                },
+                80..=252 => {
+                    /* SCANLINE*/ 
+                    if self.get_lcdc_mode() != LCD_TRANSFER_MODE {
+                        self.set_lcdc_mode(LCD_TRANSFER_MODE);
+                        self.draw_scanline(display);
+                    }
+                },
+                252..=456 => {
+                    /* H-Blank*/ 
                     self.set_lcdc_mode(H_BLANK_MODE);
-            },
-            _ => {
+                    
+                },
+                _ => {
+                    self.ly += 1;
+                    self.cycle_count = 0;
+                }
+            };
+        } else {
+            if self.get_lcdc_mode() != V_BLANK_MODE {
+                self.set_lcdc_mode(V_BLANK_MODE);
+                self.interrupts |= 1;
+                
+                self.framecount += 1;
+                
+                //self.display_sprites();
+                display.render_frame();
+            }
+            if self.cycle_count > 456 {
                 self.ly += 1;
                 self.cycle_count = 0;
-
-                if self.lcdc_status & LCD_STATUS_LYC_LY_INTERRUPT_ENABLED > 0 && self.lyc == self.ly  {
-                    self.lcdc_status |= LCD_STATUS_COINCIDENCE_FLAG;
-                    self.interrupts |= 2;
-                }
-
-                if self.ly == 154 {
-                    self.ly = 0;
-                } else if self.ly >= SCREEN_HEIGHT && self.lcdc_status & 0b00000011 != V_BLANK_MODE {
-                    self.set_lcdc_mode(V_BLANK_MODE);
-                    self.interrupts |= 1;
-    
-                    // display.texture.update(
-                    //     None,
-                    //     &*self.buffer,
-                    //     BUFFER_WIDTH as usize * BYTES_PER_PIXEL as usize,
-                    // ).unwrap()
-                    
-                    self.framecount += 1;
-                    
-                    //self.display_sprites();
-                    display.render_frame();
-                }
+            }
+            if self.ly > SCREEN_HEIGHT + 10 {
+                self.ly = 0;
             }
         }
     }
 
     fn set_lcdc_mode(&mut self, mode: u8) {
         self.lcdc_status = (self.lcdc_status & 0b11111100) | mode;
+    }
+
+    fn get_lcdc_mode(&self) -> u8 {
+        self.lcdc_status & 0b00000011
     }
 
     fn draw_scanline(&mut self, display: &mut Display) {
