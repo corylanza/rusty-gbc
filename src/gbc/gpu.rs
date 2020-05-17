@@ -140,11 +140,13 @@ impl Gpu {
     fn draw_scanline(&mut self, display: &mut Display) {
         display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
             let y = self.ly.wrapping_add(self.scy);
-            for x in 0..32 {
-                let tile = self.get_bg_tile_at(x, y / 8);
+            for x in 0u8..32 {
+                let x = x * 8;
+                let tile = self.get_bg_tile_at(x / 8, y / 8);
                 for xx in 0..8 {
-                    if (x * 8) + xx < SCREEN_WIDTH && self.ly < SCREEN_HEIGHT {
-                        let buf_idx = (self.ly as usize * pitch) + (((x as usize * 8) + xx as usize) * BYTES_PER_PIXEL as usize);
+                    let x_pix = x.wrapping_add(xx).wrapping_sub(self.scx);
+                    if x_pix < SCREEN_WIDTH && self.ly < SCREEN_HEIGHT {
+                        let buf_idx = (self.ly as usize * pitch) + (x_pix as usize * BYTES_PER_PIXEL as usize);
                         let color = tile[(y % 8)as usize][xx as usize];
         
                         buffer[buf_idx] = color.b;
