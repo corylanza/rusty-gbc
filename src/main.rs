@@ -126,9 +126,17 @@ fn main() -> Result<(), String> {
                 }
             }
             
-            let cycles = gbc.step_cycles();
-            gbc.mem.gpu.gpu_step(&mut display, cycles);
-            gbc.mem.mmu_step(cycles);
+            let mut cycle_count: u16  = 0;
+
+            loop {
+                if cycle_count > 4000 {
+                    break
+                }
+                let cycles = gbc.step_cycles();
+                cycle_count += cycles as u16;
+                gbc.mem.gpu.gpu_step(&mut display, cycles);
+                gbc.mem.mmu_step(cycles);
+            }
         }
         Ok(())
     } else {
