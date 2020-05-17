@@ -1,5 +1,4 @@
 use super::Registers;
-use super::memory::rom::Rom;
 use super::memory::ram::Ram;
 use super::memory::mbc::MemoryBank;
 use std::str;
