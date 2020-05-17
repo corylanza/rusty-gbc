@@ -79,18 +79,18 @@ impl Mmu {
             OAM_START ..= OAM_END => self.gpu.read_from_oam(address - OAM_START),
             0xFEA0 ..= 0xFEFF => 0xFF, // Unusable returns this
             IO_START => self.input.read_joypad(),
-            0xFF40 => self.gpu.lcd_control,
-            0xFF41 => self.gpu.lcdc_status,
-            0xFF42 => self.gpu.scy,
-            0xFF43 => self.gpu.scx,
-            0xFF44 => self.gpu.ly,
-            0xFF45 => self.gpu.lyc,
+            0xFF40 => self.gpu.get_lcdc_control(),
+            0xFF41 => self.gpu.get_lcdc_status(),
+            0xFF42 => self.gpu.get_scy(),
+            0xFF43 => self.gpu.get_scx(),
+            0xFF44 => self.gpu.get_ly(),
+            0xFF45 => self.gpu.get_lyc(),
             0xFF46 => match &self.dma {
                 Some(dma) => dma.value,
                 None => 0
             },
-            0xFF4A => self.gpu.wy,
-            0xFF4B => self.gpu.wx,
+            0xFF4A => self.gpu.get_wy(),
+            0xFF4B => self.gpu.get_wx(),
             IO_START ..= IO_END => self.io.read(address - IO_START),
             HRAM_START ..= HRAM_END => self.hram.read(address - HRAM_START),
             INTERUPTS_ENABLE => self.interupt_switch
@@ -131,18 +131,18 @@ impl Mmu {
             // 0xFF05 TIMA timer counter
             // 0xFF06 TMA timer modulo
             // 0xFF07 TAC timer control
-            0xFF40 => self.gpu.lcd_control = value,
-            0xFF41 => self.gpu.lcdc_status = value & 0b11111000,
-            0xFF42 => self.gpu.scy= value,
-            0xFF43 => self.gpu.scx = value,
+            0xFF40 => self.gpu.set_lcdc_control(value),
+            0xFF41 => self.gpu.set_lcdc_status(value & 0b11111000),
+            0xFF42 => self.gpu.set_scy(value),
+            0xFF43 => self.gpu.set_scx(value),
             0xFF44 => { /* No Writes to VRAM*/},
-            0xFF45 => self.gpu.lyc = value,
+            0xFF45 => self.gpu.set_lyc(value),
             0xFF46 => { self.dma = Some(Dma::new(value)); },
             // 0xFF47 => self.gpu.bgp = value,
             // 0xFF48 => self.gpu.obp0 = value,
             // 0xFF49 => self.gpu.obp1 = value,
-            0xFF4A => self.gpu.wy = value,
-            0xFF4B => self.gpu.wx = value,
+            0xFF4A => self.gpu.set_wy(value),
+            0xFF4B => self.gpu.set_wx(value),
             // 0xFF51 cgb hdma1
             // 0xFF52 cgb hdma2
             // 0xFF53 cgb hdma3

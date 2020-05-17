@@ -26,16 +26,17 @@ pub struct Gpu {
     vram: [u8; 0x8000],
     oam: [u8; 0xA0],
     tile_set: [Tile; 384],
-    pub lcd_control: u8,
-    pub lcdc_status: u8,
-    pub scy: u8,
-    pub scx: u8,
-    pub ly: u8,
-    pub lyc: u8,
-    pub wy: u8,
-    pub wx: u8,
+    lcdc_control: u8,
+    lcdc_status: u8,
+    scy: u8,
+    scx: u8,
+    ly: u8,
+    lyc: u8,
+    wy: u8,
+    wx: u8,
     cycle_count: usize,
     pub interrupts: u8,
+    updated: bool,
     framecount: u32,
     timer: Instant
 }
@@ -59,7 +60,7 @@ impl Gpu {
             oam: [0; 0xA0],
             vram: [0; 0x8000],
             tile_set: [empty_tile(); 384],
-            lcd_control: 0,
+            lcdc_control: 0,
             lcdc_status: 0,
             scy: 0,
             scx: 0,
@@ -69,19 +70,21 @@ impl Gpu {
             wx: 0,
             cycle_count: 0,
             interrupts: 0,
+            updated: true,
             framecount: 0,
             timer: Instant::now()
         })
     }
 
     pub fn gpu_step(&mut self, display: &mut Display, cycles: u8) {
-        if self.lcd_control & 0b10000000 == 0 {
+        if self.lcdc_control & 0b10000000 == 0 {
             return;
         }
         self.cycle_count += cycles as usize;
-        if self.timer.elapsed().as_millis() > 1000 {
+        let elapsed = self.timer.elapsed().as_millis();
+        if elapsed > 1000 {
             self.timer = Instant::now();
-            println!("fps {}", self.framecount);
+            println!("fps {}", self.framecount as f32 / (elapsed as f32 / 1000.0));
             self.framecount = 0;
         }
 
@@ -100,7 +103,9 @@ impl Gpu {
                     /* SCANLINE*/ 
                     if self.get_lcdc_mode() != LCD_TRANSFER_MODE {
                         self.set_lcdc_mode(LCD_TRANSFER_MODE);
-                        self.draw_scanline(display);
+                        if self.updated {
+                            self.draw_scanline(display);
+                        }
                     }
                 },
                 252..=456 => {
@@ -120,7 +125,11 @@ impl Gpu {
                 
                 self.framecount += 1;
                 
-                self.display_sprites(display);
+                if self.updated {
+                    self.display_sprites(display);
+                }
+                
+                self.updated = false;
                 display.render_frame();
             }
             if self.cycle_count > 456 {
@@ -133,6 +142,17 @@ impl Gpu {
         }
     }
 
+    fn updated(&mut self) {
+        //println!("updated");
+        self.updated = true;
+    }
+
+    pub fn set_lcdc_control(&mut self, value: u8) { self.lcdc_control = value; self.updated() }
+    pub fn get_lcdc_control(&self) -> u8 { self.lcdc_control }
+
+    pub fn set_lcdc_status(&mut self, value: u8) { self.lcdc_status = value; self.updated() }
+    pub fn get_lcdc_status(&self) -> u8 { self.lcdc_status }
+
     fn set_lcdc_mode(&mut self, mode: u8) {
         self.lcdc_status = (self.lcdc_status & 0b11111100) | mode;
     }
@@ -140,6 +160,23 @@ impl Gpu {
     fn get_lcdc_mode(&self) -> u8 {
         self.lcdc_status & 0b00000011
     }
+
+    pub fn set_scy(&mut self, value: u8) { self.scy = value; self.updated() }
+    pub fn get_scy(&self) -> u8 { self.scy }
+
+    pub fn set_scx(&mut self, value: u8) { self.scx = value;  self.updated() }
+    pub fn get_scx(&self) -> u8 { self.scx }
+
+    pub fn get_ly(&self) -> u8 { self.ly }
+
+    pub fn set_lyc(&mut self, value: u8) { self.lyc = value; self.updated() }
+    pub fn get_lyc(&self) -> u8 { self.lyc }
+
+    pub fn set_wy(&mut self, value: u8) { self.wy = value; self.updated() }
+    pub fn get_wy(&self) -> u8 { self.wy }
+
+    pub fn set_wx(&mut self, value: u8) { self.wx = value; self.updated() }
+    pub fn get_wx(&self) -> u8 { self.wx }
 
     fn draw_scanline(&mut self, display: &mut Display) {
         display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
@@ -189,13 +226,13 @@ impl Gpu {
 
     fn get_bg_tile_at(&self, x: u8, y: u8) -> Tile {
         let address = y as u16 * 32 + x as u16;
-        let tile_id = if self.lcd_control & 0b00001000 > 0 {
+        let tile_id = if self.lcdc_control & 0b00001000 > 0 {
             self.vram[(address + 0x1C00) as usize]
         } else {
             self.vram[(address + 0x1800) as usize]
         };
 
-        if self.lcd_control & 0b00010000 > 0 {
+        if self.lcdc_control & 0b00010000 > 0 {
             self.tile_set[tile_id as usize]
         } else {
             let address = (0x100 as i16) + i8::from_le_bytes([tile_id]) as i16;
@@ -259,6 +296,7 @@ impl Gpu {
     }
 
     pub fn write_to_vram(&mut self, address: u16, value: u8) {
+        self.updated(); 
         // if self.lcdc_status & 0b00000011 == LCD_TRANSFER_MODE {
         //     // cannot access VRAM during LCD Transfer
         //     return;
@@ -294,6 +332,7 @@ impl Gpu {
     }
 
     pub fn write_to_oam(&mut self, address: u16, value: u8) {
+        self.updated();
         if false /*self.lcdc_status & 0b00000011 == OAM_SEARCH_MODE
             ||  self.lcdc_status & 0b00000011 == LCD_TRANSFER_MODE */ {
             // cannot access OAM during OAM search or LCD Transfer
