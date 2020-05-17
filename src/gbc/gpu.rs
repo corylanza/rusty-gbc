@@ -7,6 +7,11 @@ use crate::{SCREEN_HEIGHT, SCREEN_WIDTH};
 const SPRITE_X_LIM: u8 = SCREEN_WIDTH + 8;
 const SPRITE_Y_LIM: u8 = SCREEN_HEIGHT + 16;
 
+//const SPRITE_OBJ_TO_BG_PRIORITY: u8 = 0b01000000; // (0=OBJ Above BG, 1=OBJ Behind BG color 1-3) //(Used for both BG and Window. BG color 0 is always behind OBJ)
+const SPRITE_Y_FLIP: u8 = 0b01000000; // (0=Normal, 1=Vertically mirrored)
+const SPRITE_X_FLIP: u8 = 0b00100000; //(0=Normal, 1=Horizontally mirrored)
+//const SPRITE_PALETTE_NUM: u8 = 0b00010000; // **Non CGB Mode Only** (0=OBP0, 1=OBP1)
+
 const H_BLANK_MODE: u8 = 0;
 const V_BLANK_MODE: u8 = 1;
 const OAM_SEARCH_MODE: u8 = 2;
@@ -29,7 +34,6 @@ pub struct Gpu {
     pub lyc: u8,
     pub wy: u8,
     pub wx: u8,
-    //buffer: Vec<u8>,
     cycle_count: usize,
     pub interrupts: u8,
     framecount: u32,
@@ -206,12 +210,20 @@ impl Gpu {
                 (1 ..= SPRITE_X_LIM, 1 ..= SPRITE_Y_LIM) => {
                     let tile = self.get_sprite_tile(sprite.tile_number);
                     display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
-                        //let y = self.ly.wrapping_add(self.scy);
+                        let flip = sprite.flags & SPRITE_X_FLIP == SPRITE_X_FLIP;
                         for x in 0..8 {
-                            let sprite_x = (sprite.x.wrapping_sub(8) as usize) + x;
+                            let sprite_x = if flip { 
+                                sprite.x.wrapping_sub(8).wrapping_sub(x) as usize
+                            } else {
+                                sprite.x.wrapping_sub(8).wrapping_add(x) as usize
+                            };
                             
                             for y in 0..8 {
-                                let sprite_y = (sprite.y.wrapping_sub(16) as usize) + y;
+                                let sprite_y = if sprite.flags & SPRITE_Y_FLIP == SPRITE_Y_FLIP {
+                                    sprite.y.wrapping_sub(16).wrapping_sub(y) as usize
+                                } else {
+                                    sprite.y.wrapping_sub(16).wrapping_add(y) as usize
+                                };
                                 if  sprite_x < SCREEN_WIDTH as usize && sprite_y < SCREEN_HEIGHT as usize {
                                     let buf_idx = ((sprite_y) * pitch) + ((sprite_x)* BYTES_PER_PIXEL as usize);
                                     let color = tile[y as usize][x as usize];
