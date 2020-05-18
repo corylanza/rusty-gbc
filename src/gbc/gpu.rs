@@ -49,7 +49,7 @@ pub struct Gpu {
     timer: Instant
 }
 
-type Tile = [[Color; 8]; 8];
+type Tile = [[u8; 8]; 8];
 
 struct Sprite {
     y: u8,
@@ -59,7 +59,7 @@ struct Sprite {
 }
 
 fn empty_tile() -> Tile {
-    [[Color::RGB(0, 0, 0); 8]; 8]
+    [[0; 8]; 8]
 }
 
 impl Gpu {
@@ -211,8 +211,8 @@ impl Gpu {
                     let x_pix = x.wrapping_add(xx).wrapping_sub(self.scx);
                     if x_pix < SCREEN_WIDTH && self.ly < SCREEN_HEIGHT {
                         let buf_idx = (self.ly as usize * pitch) + (x_pix as usize * BYTES_PER_PIXEL as usize);
-                        let color = tile[(y % 8)as usize][xx as usize];
-        
+                        let color = self.get_bg_color(tile[(y % 8)as usize][xx as usize]);
+                        
                         buffer[buf_idx] = color.b;
                         buffer[buf_idx + 1] = color.g;
                         buffer[buf_idx + 2] = color.r;
@@ -286,7 +286,7 @@ impl Gpu {
                                 };
                                 if  sprite_x < SCREEN_WIDTH as usize && sprite_y < SCREEN_HEIGHT as usize {
                                     let buf_idx = ((sprite_y) * pitch) + ((sprite_x)* BYTES_PER_PIXEL as usize);
-                                    let color = tile[y as usize][x as usize];
+                                    let color = self.get_bg_color(tile[y as usize][x as usize]);
                         
                                     buffer[buf_idx] = color.b;
                                     buffer[buf_idx + 1] = color.g;
@@ -337,12 +337,18 @@ impl Gpu {
 
         for pixel in 0..8 {
             let mask = 1 << (7 - pixel);
-            self.tile_set[tile][row][pixel] = match (byte1 & mask != 0, byte2 & mask != 0) {
-                (true, true) => BLACK,
-                (false, true) => LIGHT_GRAY,
-                (true, false) => DARK_GRAY,
-                (false, false) => WHITE,
-            };
+            let color = ((byte1 & mask) >> (7 - pixel)) << 1 | ((byte2 & mask) >> (7 - pixel));
+            self.tile_set[tile][row][pixel] = color;
+        }
+    }
+
+    fn get_bg_color(&self, value: u8) -> Color {
+        match (self.bgp & (0b11 << (2 * value))) >> (2 * value) {
+            0 => WHITE,
+            1 => LIGHT_GRAY,
+            2 => DARK_GRAY,
+            3 => BLACK,
+            _ => Color::RGB(0, 0, 0xff)
         }
     }
 
