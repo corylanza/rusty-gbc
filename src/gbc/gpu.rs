@@ -10,7 +10,7 @@ const SPRITE_Y_LIM: u8 = SCREEN_HEIGHT + 16;
 //const SPRITE_OBJ_TO_BG_PRIORITY: u8 = 0b01000000; // (0=OBJ Above BG, 1=OBJ Behind BG color 1-3) //(Used for both BG and Window. BG color 0 is always behind OBJ)
 const SPRITE_Y_FLIP: u8 = 0b01000000; // (0=Normal, 1=Vertically mirrored)
 const SPRITE_X_FLIP: u8 = 0b00100000; //(0=Normal, 1=Horizontally mirrored)
-//const SPRITE_PALETTE_NUM: u8 = 0b00010000; // **Non CGB Mode Only** (0=OBP0, 1=OBP1)
+const SPRITE_PALETTE_NUM: u8 = 0b00010000; // **Non CGB Mode Only** (0=OBP0, 1=OBP1)
 
 const H_BLANK_MODE: u8 = 0;
 const V_BLANK_MODE: u8 = 1;
@@ -273,25 +273,29 @@ impl Gpu {
                         let flip = sprite.flags & SPRITE_X_FLIP == SPRITE_X_FLIP;
                         for x in 0..8 {
                             let sprite_x = if flip { 
-                                sprite.x.wrapping_sub(8).wrapping_sub(x) as usize
+                                sprite.x.wrapping_sub(x +1) as usize
                             } else {
                                 sprite.x.wrapping_sub(8).wrapping_add(x) as usize
                             };
                             
                             for y in 0..8 {
                                 let sprite_y = if sprite.flags & SPRITE_Y_FLIP == SPRITE_Y_FLIP {
-                                    sprite.y.wrapping_sub(16).wrapping_sub(y) as usize
+                                    sprite.y.wrapping_sub(8).wrapping_sub(y) as usize
                                 } else {
                                     sprite.y.wrapping_sub(16).wrapping_add(y) as usize
                                 };
                                 if  sprite_x < SCREEN_WIDTH as usize && sprite_y < SCREEN_HEIGHT as usize {
                                     let buf_idx = ((sprite_y) * pitch) + ((sprite_x)* BYTES_PER_PIXEL as usize);
-                                    let color = self.get_bg_color(tile[y as usize][x as usize]);
-                        
-                                    buffer[buf_idx] = color.b;
-                                    buffer[buf_idx + 1] = color.g;
-                                    buffer[buf_idx + 2] = color.r;
-                                    buffer[buf_idx + 3] = color.a;
+                                    let color = self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0,tile[y as usize][x as usize]);
+                                    match color {
+                                        None => {},
+                                        Some(color) => {
+                                            buffer[buf_idx] = color.b;
+                                            buffer[buf_idx + 1] = color.g;
+                                            buffer[buf_idx + 2] = color.r;
+                                            buffer[buf_idx + 3] = color.a;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -339,6 +343,20 @@ impl Gpu {
             let mask = 1 << (7 - pixel);
             let color = ((byte1 & mask) >> (7 - pixel)) << 1 | ((byte2 & mask) >> (7 - pixel));
             self.tile_set[tile][row][pixel] = color;
+        }
+    }
+
+    fn get_sprite_color(&self, useobp1: bool, value: u8) -> Option<Color> {
+        let palette = if useobp1 { self.obp1 } else { self.obp0 };
+        if value == 0 {
+            return None;
+        }
+        match (palette & (0b11 << (2 * value))) >> (2 * value) {
+            0 => Some(WHITE),
+            1 => Some(LIGHT_GRAY),
+            2 => Some(DARK_GRAY),
+            3 => Some(BLACK),
+            _ => None
         }
     }
 
