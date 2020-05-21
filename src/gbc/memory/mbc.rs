@@ -101,10 +101,10 @@ struct MBC1 {
     rom_banks: Vec<u8>,//[[u8; 0x4000]; 0x80],
     ram_banks: Vec<u8>,//[[u8; 0x2000]; 4],
     selected_rom: u8,
+    two_bits: u8,
     ram_enabled: bool,
     /// ROM banking mode if false, RAM banking mode if true
     ram_banking_mode: bool,
-    selected_ram: u8,
 }
 
 impl MBC1 {
@@ -114,9 +114,9 @@ impl MBC1 {
             rom_banks: vec![0; 0x4000 * 0x80],//[[0; 0x4000]; 0x80],
             ram_banks: vec![0; 0x2000 * 4],//[[0; 0x2000]; 4],
             selected_rom: 0,
+            two_bits: 0,
             ram_enabled: false,
             ram_banking_mode: false,
-            selected_ram: 0,
         };
         for (idx, byte) in bytes.iter().enumerate() {
             mbc.rom_banks[idx] = *byte;
@@ -130,23 +130,21 @@ impl MemoryBank for MBC1 {
         match address {
             0 ..= 0x1FFF => {
                 self.ram_enabled = value & 0x0A == 0x0A;
+                if self.ram_enabled {
+                }
             },
             0x2000 ..= 0x3FFF => {
                 match value {
                     // TODO take into account banks start at 1
                     0 => self.selected_rom = 1,
-                    0x20 => self.selected_rom = 0x21,
-                    0x40 => self.selected_rom = 0x41,
-                    0x60 => self.selected_rom = 0x61,
-                    _ => self.selected_rom = (self.selected_rom & 0b01100000) | (value & 0b00011111)
+                    0x20 if !self.ram_banking_mode => self.selected_rom = 0x21,
+                    0x40 if !self.ram_banking_mode => self.selected_rom = 0x41,
+                    0x60 if !self.ram_banking_mode => self.selected_rom = 0x61,
+                    _ => self.selected_rom = value & 0b00011111
                 }
             },
             0x4000 ..= 0x5FFF => {
-                if self.ram_banking_mode {
-                    self.selected_ram = (self.selected_rom & 0b00000011) | (value & 0b00000011);
-                } else {
-                    self.selected_rom = (self.selected_rom & 0b10011111) | ((value & 0b00000011) << 5)
-                }
+                self.two_bits = value & 0b11;
             },
             0x6000 ..= 0x7FFF => {
                 self.ram_banking_mode = value & 1 == 1;
@@ -156,20 +154,23 @@ impl MemoryBank for MBC1 {
     }
     fn write_ram(&mut self, address: u16, value: u8) {
         match self.ram_enabled {
-            true => self.ram_banks[self.selected_ram as usize * 0x2000 + address as usize] = value,
+            true if self.ram_banking_mode => self.ram_banks[self.two_bits as usize * 0x2000 + address as usize] = value,
+            true => self.ram_banks[address as usize] = value,
             false => {}
         }
     }
     fn read_rom(&self, address: u16) -> u8 {
         match address {
             0 ..= 0x3FFF => self.rom_banks[address as usize],
-            0x4000 ..= 0x7FFF => self.rom_banks[self.selected_rom as usize * 0x4000 + address as usize],
+            0x4000 ..= 0x7FFF if self.ram_banking_mode => self.rom_banks[self.selected_rom as usize * 0x4000 + address as usize],
+            0x400 ..= 0x7FFF => self.rom_banks[(self.selected_rom | (self.two_bits << 5)) as usize * 0x4000 + address as usize],
             _ => panic!("ROM goes only to 0x7FFF, tried to read outside bounds")
         }
     }
     fn read_ram(&self, address: u16) -> u8 {
         match self.ram_enabled {
-            true => self.ram_banks[self.selected_ram as usize * 0x2000 + address as usize],
+            true if self.ram_banking_mode => self.ram_banks[self.two_bits as usize * 0x2000 + address as usize],
+            true => self.ram_banks[address as usize],
             false => 0xFF
         }
     }
