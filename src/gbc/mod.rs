@@ -575,7 +575,7 @@ impl Cpu {
             // DEC SP
             0x3B => { self.regs.sp = self.regs.sp.wrapping_sub(1); 8 },
             // DAA
-            0x27 => { 4 },
+            0x27 => { self.decimal_adjust(); 4 },
             // CPL
             0x2F => {
                 self.regs.a = !self.regs.a; 
@@ -790,6 +790,22 @@ impl Cpu {
         let new_val = first.wrapping_sub(1);
         self.regs.set_zero_flag(new_val == 0);
         new_val
+    }
+
+    fn decimal_adjust(&mut self) {
+        // let mut a = self.regs.a;
+        // let mut digit1 = a >> 4;
+        // let mut digit2 = a & 0b11110000;
+        // let C = self.regs.carry_flag();
+        // let H = self.regs.half_carry_flag();
+        // let N = self.regs.subtract_flag();
+        // if !N {
+        //     if digit1 > 9 {
+        //         digit1 += 6;
+                
+        //     }
+        // }
+        // self.regs.a = a;
     }
 
     fn add_signed_u8_to_sp(&mut self) -> u16 {
