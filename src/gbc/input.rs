@@ -1,3 +1,4 @@
+use super::JOYPAD_INTERRUPT;
 const SELECT_BUTTON: u8 = 0b00100000;
 const SELECT_DIRECTION: u8 = 0b00010000;
 
@@ -17,7 +18,7 @@ impl Input {
     }
 
     pub fn key_pressed(&mut self, key: Keycode) {
-        self.interrupt = 16;
+        self.interrupt = JOYPAD_INTERRUPT;
         self.buttons ^= key.bit();
     }
 

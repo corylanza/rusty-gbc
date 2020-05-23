@@ -3,6 +3,7 @@ use std::time::Instant;
 
 use crate::Display;
 use crate::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use super::{V_BLANK_INTERRUPT, STAT_INTERRUPT};
 
 const SPRITE_X_LIM: u8 = SCREEN_WIDTH + 8;
 const SPRITE_Y_LIM: u8 = SCREEN_HEIGHT + 16;
@@ -31,8 +32,26 @@ pub struct Gpu {
     vram: [u8; 0x8000],
     oam: [u8; 0xA0],
     tile_set: [Tile; 384],
-    lcdc_control: u8,
-    lcdc_status: u8,
+    sprites: [Option<Sprite>; 10],
+    // LCD Control
+    lcd_enable: bool,
+    window_tile_map: bool,
+    window_enable: bool,
+    /// BG & Window Tile Data Select (false=8800-97FF, true=8000-8FFF)
+    bg_window_tile_data: bool,
+    /// BG Tile Map Display Select (false=9800-9BFF, true=9C00-9FFF)
+    bg_tile_map_select: bool,
+    double_sprite_size: bool,
+    sprite_enable: bool,
+    bg_window_priority: bool,
+    // LCDC Status
+    coincidence_interrupt_enabled: bool,
+    oam_interrupt_enabled: bool,
+    v_blank_interrupt_enabled: bool,
+    h_blank_interrupt_enabled: bool,
+    coincidence_flag: bool,
+    lcd_mode: u8,
+    // Misc
     scy: u8,
     scx: u8,
     ly: u8,
@@ -68,8 +87,24 @@ impl Gpu {
             oam: [0; 0xA0],
             vram: [0; 0x8000],
             tile_set: [empty_tile(); 384],
-            lcdc_control: 0,
-            lcdc_status: 0,
+            sprites: Default::default(),
+            // LCD Control
+            lcd_enable: false,
+            window_tile_map: false,
+            window_enable: false,
+            bg_window_tile_data: false,
+            bg_tile_map_select: false,
+            double_sprite_size: false,
+            sprite_enable: false,
+            bg_window_priority: false,
+            // LCDC Status
+            coincidence_interrupt_enabled: false,
+            oam_interrupt_enabled: false,
+            v_blank_interrupt_enabled: false,
+            h_blank_interrupt_enabled: false,
+            coincidence_flag: false,
+            lcd_mode: 0,
+            // Misc
             scy: 0,
             scx: 0,
             ly: 0,
@@ -88,7 +123,7 @@ impl Gpu {
     }
 
     pub fn gpu_step(&mut self, display: &mut Display, cycles: u8) {
-        if self.lcdc_control & 0b10000000 == 0 {
+        if !self.lcd_enable {
             return;
         }
         self.cycle_count += cycles as usize;
@@ -99,16 +134,19 @@ impl Gpu {
             self.framecount = 0;
         }
 
-        if self.lcdc_status & LCD_STATUS_LYC_LY_INTERRUPT_ENABLED > 0 && self.lyc == self.ly  {
-            self.lcdc_status |= LCD_STATUS_COINCIDENCE_FLAG;
-            self.interrupts |= 2;
+        if self.coincidence_interrupt_enabled && self.lyc == self.ly  {
+            self.coincidence_flag = true;
+            self.interrupts |= STAT_INTERRUPT;
         }
 
         if self.ly < SCREEN_HEIGHT {
             match self.cycle_count {
                 0..=80 => {
                     /* OAM SEARCH */
-                    self.set_lcdc_mode(OAM_SEARCH_MODE);
+                    if self.get_lcdc_mode() != OAM_SEARCH_MODE {
+                        //self.sprites = self.get_sprite(n: u8)
+                        self.set_lcdc_mode(OAM_SEARCH_MODE);
+                    }
                 },
                 80..=252 => {
                     /* SCANLINE*/ 
@@ -121,8 +159,13 @@ impl Gpu {
                 },
                 252..=456 => {
                     /* H-Blank*/ 
-                    self.set_lcdc_mode(H_BLANK_MODE);
-                    
+                    if self.get_lcdc_mode() != H_BLANK_MODE {
+                        self.set_lcdc_mode(H_BLANK_MODE);
+                        if self.h_blank_interrupt_enabled {
+                            self.interrupts |= STAT_INTERRUPT;
+                        }
+                    }
+
                 },
                 _ => {
                     self.ly += 1;
@@ -132,7 +175,7 @@ impl Gpu {
         } else {
             if self.get_lcdc_mode() != V_BLANK_MODE {
                 self.set_lcdc_mode(V_BLANK_MODE);
-                self.interrupts |= 1;
+                self.interrupts |= V_BLANK_INTERRUPT;
                 
                 self.framecount += 1;
                 
@@ -158,18 +201,59 @@ impl Gpu {
         self.updated = true;
     }
 
-    pub fn set_lcdc_control(&mut self, value: u8) { self.lcdc_control = value; self.updated() }
-    pub fn get_lcdc_control(&self) -> u8 { self.lcdc_control }
+    pub fn set_lcdc_control(&mut self, value: u8) {
+        let bit = |flag: u8| value & 1 << flag > 0;
+        self.lcd_enable = bit(7);
+        self.window_tile_map = bit(6);
+        self.window_enable = bit(5);
+        self.bg_window_tile_data = bit(4);
+        self.bg_tile_map_select = bit(3);
+        self.double_sprite_size = bit(2);
+        self.sprite_enable = bit(1);
+        self.bg_window_priority = bit(0);
+        self.updated() 
+    }
+    pub fn get_lcdc_control(&self) -> u8 {
+        let mut lcdc = 0;
+        let mut bit = |flag: u8, cond: bool| if cond { lcdc |= 1 << flag };
+        bit(7, self.lcd_enable);
+        bit(6, self.window_tile_map);
+        bit(5, self.window_enable);
+        bit(4, self.bg_window_tile_data);
+        bit(3, self.bg_tile_map_select);
+        bit(2, self.double_sprite_size);
+        bit(1, self.sprite_enable);
+        bit(0, self.bg_window_priority);
+        lcdc
+    }
 
-    pub fn set_lcdc_status(&mut self, value: u8) { self.lcdc_status = value; self.updated() }
-    pub fn get_lcdc_status(&self) -> u8 { self.lcdc_status }
+    pub fn set_lcdc_status(&mut self, value: u8) {
+        let bit = |flag: u8| value & 1 << flag > 0;
+        self.coincidence_interrupt_enabled = bit(7);
+        self.oam_interrupt_enabled = bit(6);
+        self.v_blank_interrupt_enabled = bit(5);
+        self.h_blank_interrupt_enabled = bit(4);
+        self.updated() 
+    }
+
+    pub fn get_lcdc_status(&self) -> u8 {
+        let mut stat = 0b10000000; // Unused bit 7 always 1
+        let mut bit = |flag: u8, cond: bool, | if cond { stat |= 1 << flag };
+        bit(6, self.coincidence_interrupt_enabled);
+        bit(5, self.oam_interrupt_enabled);
+        bit(4, self.v_blank_interrupt_enabled);
+        bit(3, self.h_blank_interrupt_enabled);
+        bit(2, self.coincidence_flag);
+        stat |= self.get_lcdc_mode();
+        stat
+    }
 
     fn set_lcdc_mode(&mut self, mode: u8) {
-        self.lcdc_status = (self.lcdc_status & 0b11111100) | mode;
+        self.lcd_mode = mode & 0b11;
     }
 
     fn get_lcdc_mode(&self) -> u8 {
-        self.lcdc_status & 0b00000011
+        self.lcd_mode & 0b11
     }
 
     pub fn set_scy(&mut self, value: u8) { self.scy = value; self.updated() }
@@ -249,13 +333,13 @@ impl Gpu {
 
     fn get_bg_tile_at(&self, x: u8, y: u8) -> Tile {
         let address = y as u16 * 32 + x as u16;
-        let tile_id = if self.lcdc_control & 0b00001000 > 0 {
+        let tile_id = if self.bg_tile_map_select {
             self.vram[(address + 0x1C00) as usize]
         } else {
             self.vram[(address + 0x1800) as usize]
         };
 
-        if self.lcdc_control & 0b00010000 > 0 {
+        if self.bg_window_tile_data {
             self.tile_set[tile_id as usize]
         } else {
             let address = (0x100 as i16) + i8::from_le_bytes([tile_id]) as i16;
@@ -371,7 +455,7 @@ impl Gpu {
     }
 
     pub fn read_from_vram(&self, address: u16) -> u8 {
-        if self.lcdc_status & 0b00000011 == LCD_TRANSFER_MODE {
+        if self.get_lcdc_mode() == LCD_TRANSFER_MODE {
             // cannot access VRAM during LCD Transfer
             return 0xFF;
         }

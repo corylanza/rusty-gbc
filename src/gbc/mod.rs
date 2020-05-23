@@ -10,6 +10,12 @@ pub use registers::Registers;
 use super::debugger::Debugger;
 use crate::gbc::gpu::Gpu;
 
+const V_BLANK_INTERRUPT: u8 = 1;
+const STAT_INTERRUPT: u8 = 2;
+const TIMER_INTERRUPT: u8 = 4;
+const SERIAL_INTERRUPT: u8 = 8;
+pub const JOYPAD_INTERRUPT: u8 = 16;
+
 pub struct Cpu {
     pub mem: Mmu,
     pub regs: Registers,
@@ -41,7 +47,7 @@ impl Cpu {
         // TODO interrupts take 20 cycles to handle (+ 4 if in halt mode)
         let int_enable = self.mem.read(mmu::INTERUPTS_ENABLE);
         let int_request = self.mem.read(mmu::INTERUPT_REQUEST);
-        for flag in vec![1, 2, 4, 8, 16] {
+        for flag in vec![V_BLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT, JOYPAD_INTERRUPT] {
             if self.handle_interrupt(flag, int_enable, int_request) {
                 return 20
             }
@@ -58,11 +64,11 @@ impl Cpu {
                 let pc = self.regs.pc;
                 self.mem.push_u16(&mut self.regs, pc);
                 self.regs.pc = match flag {
-                    1 => 0x40, // v-blank
-                    2 => 0x48, // LCD Stat
-                    4 => 0x50, // Timer
-                    8 => 0x58, // Serial
-                    16 => 0x60, // Joypad
+                    V_BLANK_INTERRUPT => 0x40, // v-blank
+                    STAT_INTERRUPT => 0x48, // LCD Stat
+                    TIMER_INTERRUPT => 0x50, // Timer
+                    SERIAL_INTERRUPT => 0x58, // Serial
+                    JOYPAD_INTERRUPT => 0x60, // Joypad
                     _ => panic!("unknown interrupt")
                 };
                 if self.log {

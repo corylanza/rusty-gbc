@@ -140,7 +140,7 @@ impl Mmu {
             // 0xFF06 TMA timer modulo
             // 0xFF07 TAC timer control
             0xFF40 => self.gpu.set_lcdc_control(value),
-            0xFF41 => self.gpu.set_lcdc_status(value & 0b11111000),
+            0xFF41 => self.gpu.set_lcdc_status(value),
             0xFF42 => self.gpu.set_scy(value),
             0xFF43 => self.gpu.set_scx(value),
             0xFF44 => { /* No Writes to VRAM*/},
