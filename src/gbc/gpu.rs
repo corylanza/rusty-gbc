@@ -17,9 +17,6 @@ const H_BLANK_MODE: u8 = 0;
 const V_BLANK_MODE: u8 = 1;
 const OAM_SEARCH_MODE: u8 = 2;
 const LCD_TRANSFER_MODE: u8 = 3;
-const LCD_STATUS_COINCIDENCE_FLAG: u8 = 4;
-const LCD_STATUS_LYC_LY_INTERRUPT_ENABLED: u8 = 64;
-
 
 const BYTES_PER_PIXEL: u8 = 4; // RGBA8888
 
@@ -137,6 +134,7 @@ impl Gpu {
         if self.coincidence_interrupt_enabled && self.lyc == self.ly  {
             self.coincidence_flag = true;
             self.interrupts |= STAT_INTERRUPT;
+            // TODO this likely shouldn't request an interrupt at every step
         }
 
         if self.ly < SCREEN_HEIGHT {
@@ -146,6 +144,9 @@ impl Gpu {
                     if self.get_lcdc_mode() != OAM_SEARCH_MODE {
                         //self.sprites = self.get_sprite(n: u8)
                         self.set_lcdc_mode(OAM_SEARCH_MODE);
+                        if self.oam_interrupt_enabled {
+                            self.interrupts |= STAT_INTERRUPT;
+                        }
                     }
                 },
                 80..=252 => {
