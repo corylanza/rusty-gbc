@@ -181,6 +181,7 @@ impl Gpu {
                 self.framecount += 1;
                 
                 if self.updated {
+                    self.display_window(display);
                     self.display_sprites(display);
                     display.render_frame();
                 }
@@ -291,7 +292,7 @@ impl Gpu {
             let y = self.ly.wrapping_add(self.scy);
             for x in 0u8..32 {
                 let x = x * 8;
-                let tile = self.get_bg_tile_at(x / 8, y / 8);
+                let tile = self.get_tile_at(self.bg_tile_map_select, x / 8, y / 8);
                 for xx in 0..8 {
                     let x_pix = x.wrapping_add(xx).wrapping_sub(self.scx);
                     if x_pix < SCREEN_WIDTH && self.ly < SCREEN_HEIGHT {
@@ -332,9 +333,9 @@ impl Gpu {
     //     tileset_canvas.present();
     // }
 
-    fn get_bg_tile_at(&self, x: u8, y: u8) -> Tile {
+    fn get_tile_at(&self, tilemap: bool, x: u8, y: u8) -> Tile {
         let address = y as u16 * 32 + x as u16;
-        let tile_id = if self.bg_tile_map_select {
+        let tile_id = if tilemap {
             self.vram[(address + 0x1C00) as usize]
         } else {
             self.vram[(address + 0x1800) as usize]
@@ -348,7 +349,35 @@ impl Gpu {
         }
     }
 
+    fn display_window(&mut self, display: &mut Display) {
+        if self.window_enable {
+            display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
+                for rx in 0..SCREEN_WIDTH {
+                    let x = rx as u16 + self.wx as u16;
+                    for ry in 0..SCREEN_HEIGHT {
+                        let y = ry as u16 + self.wy as u16;
+                        if x < SCREEN_WIDTH as u16 && y < SCREEN_HEIGHT as u16 {
+                            let tile = self.get_tile_at(self.window_tile_map, x as u8 / 8, y as u8 / 8);
+                            let buf_idx = (ry as usize * pitch) + (rx as usize * BYTES_PER_PIXEL as usize);
+                            let color = self.get_bg_color(tile[(y % 8) as usize][(x % 8) as usize]);
+                            
+                            buffer[buf_idx] = color.b;
+                            buffer[buf_idx + 1] = color.g;
+                            buffer[buf_idx + 2] = color.r;
+                            buffer[buf_idx + 3] = color.a;
+                        }
+                    }
+                }
+            }).unwrap();
+            //let tile = self.get_tile_at(self.window_tile_map, 0, 0);
+        }
+    }
+
     fn display_sprites(&mut self, display: &mut Display) {
+        if !self.sprite_enable {
+            return;
+        }
+
         for i in 0 .. 40 {
             let sprite = self.get_sprite(i);
             match (sprite.x, sprite.y) {
