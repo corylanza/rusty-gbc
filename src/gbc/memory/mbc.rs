@@ -123,6 +123,13 @@ impl MBC1 {
         }
         mbc
     }
+
+    fn selected_rom(&self) -> u8 {
+        match self.ram_banking_mode {
+            true => self.selected_rom,
+            false => self.selected_rom | (self.two_bits << 5)
+        }
+    }
 }
 
 impl MemoryBank for MBC1 {
@@ -130,17 +137,11 @@ impl MemoryBank for MBC1 {
         match address {
             0 ..= 0x1FFF => {
                 self.ram_enabled = value & 0x0A == 0x0A;
-                if self.ram_enabled {
-                }
             },
             0x2000 ..= 0x3FFF => {
-                match value {
-                    // TODO take into account banks start at 1
-                    0 => self.selected_rom = 1,
-                    0x20 if !self.ram_banking_mode => self.selected_rom = 0x21,
-                    0x40 if !self.ram_banking_mode => self.selected_rom = 0x41,
-                    0x60 if !self.ram_banking_mode => self.selected_rom = 0x61,
-                    _ => self.selected_rom = value & 0b00011111
+                self.selected_rom = match value & 0b00011111 {
+                    0 => (value + 1) & 0b00011111,
+                    _ => value & 0b00011111
                 }
             },
             0x4000 ..= 0x5FFF => {
@@ -162,14 +163,13 @@ impl MemoryBank for MBC1 {
     fn read_rom(&self, address: u16) -> u8 {
         match address {
             0 ..= 0x3FFF => self.rom_banks[address as usize],
-            0x4000 ..= 0x7FFF if self.ram_banking_mode => self.rom_banks[self.selected_rom as usize * 0x4000 + address as usize],
-            0x400 ..= 0x7FFF => self.rom_banks[(self.selected_rom | (self.two_bits << 5)) as usize * 0x4000 + address as usize],
+            0x4000 ..= 0x7FFF => self.rom_banks[(self.selected_rom() as usize * 0x4000) + address as usize],
             _ => panic!("ROM goes only to 0x7FFF, tried to read outside bounds")
         }
     }
     fn read_ram(&self, address: u16) -> u8 {
         match self.ram_enabled {
-            true if self.ram_banking_mode => self.ram_banks[self.two_bits as usize * 0x2000 + address as usize],
+            true if self.ram_banking_mode => self.ram_banks[(self.two_bits as usize * 0x2000) + address as usize],
             true => self.ram_banks[address as usize],
             false => 0xFF
         }
