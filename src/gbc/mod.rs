@@ -799,19 +799,25 @@ impl Cpu {
     }
 
     fn decimal_adjust(&mut self) {
-        // let mut a = self.regs.a;
-        // let mut digit1 = a >> 4;
-        // let mut digit2 = a & 0b11110000;
-        // let C = self.regs.carry_flag();
-        // let H = self.regs.half_carry_flag();
-        // let N = self.regs.subtract_flag();
-        // if !N {
-        //     if digit1 > 9 {
-        //         digit1 += 6;
-                
-        //     }
-        // }
-        // self.regs.a = a;
+        let mut a = self.regs.a;
+        let c = self.regs.carry_flag();
+        let h = self.regs.half_carry_flag();
+        let n = self.regs.subtract_flag();
+        let mut adjust = 0;
+        if h || (!n && (a & 0b1111) > 9) {
+            adjust = 6;
+        };
+
+        if c || (!n && a > 0x99) {
+            adjust |= 0x60;
+        }
+        a = (if n { a.wrapping_sub(adjust) } else { a.wrapping_add(adjust) }) & 0xFF;
+
+        self.regs.set_carry_flag(adjust >= 0x60);
+        self.regs.set_zero_flag(a == 0);
+        self.regs.set_half_carry_flag(false);
+
+        self.regs.a = a;
     }
 
     fn add_signed_u8_to_sp(&mut self) -> u16 {
