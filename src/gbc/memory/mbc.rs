@@ -27,7 +27,6 @@ impl dyn MemoryBank {
             1 ..= 8 => 2u8.pow(rom_size as u32 + 1),
             _ => panic!("Unsupported ROM size {:02X}", rom_size)
         };
-        println!("{} ROM banks", rom_bank_count);
         let ram_size = buffer[RAM_SIZE_ADDRESS as usize];
         let (ram_bank_count, ram_bank_size) = match ram_size {
             0 => (0, 0),
@@ -38,7 +37,6 @@ impl dyn MemoryBank {
             5 => (8, 0x2000),
             _ => panic!("Unsupported RAM size {:02X}", ram_size)
         };
-        println!("{} RAM banks of size {:04X}", ram_bank_count, ram_bank_size);
         match mbc_type {
             0 => NoMBC::load_rom(&buffer),
             1..=3 => Box::new(MBC1::load_rom(&buffer, rom_bank_count, ram_bank_count, ram_bank_size)),
@@ -118,8 +116,8 @@ impl MemoryBank for NoMBC {
 }
 
 struct MBC1 {
-    rom_banks: Vec<u8>,//[[u8; 0x4000]; 0x80],
-    ram_banks: Vec<u8>,//[[u8; 0x2000]; 4],
+    rom_banks: Vec<u8>,
+    ram_banks: Vec<u8>,
     selected_rom: u8,
     two_bits: u8,
     ram_enabled: bool,
@@ -130,14 +128,22 @@ struct MBC1 {
 impl MBC1 {
     fn load_rom(bytes: &Vec<u8>, rom_bank_count: u8, ram_bank_count: u8, ram_bank_size: u16) -> MBC1 {
         println!("MBC1");
+        //Special limitation of MBC1
+        let rom_bank_count = match rom_bank_count {
+            64 => 63,
+            128 => 125,
+            _ => rom_bank_count
+        };
         let mut mbc = MBC1 {
-            rom_banks: vec![0; 0x4000 * (rom_bank_count + 1) as usize],
+            rom_banks: vec![0; 0x4000 * rom_bank_count as usize],
             ram_banks: vec![0; ram_bank_size as usize * ram_bank_count as usize],
             selected_rom: 0,
             two_bits: 0,
             ram_enabled: false,
             ram_banking_mode: false,
         };
+        println!("{} ROM banks of size 0x4000 (total {}Kbyte) {} RAM banks of size 0x{:04X} (total {}Kbyte)",
+            rom_bank_count, mbc.rom_banks.len() / 0x400, ram_bank_count, ram_bank_size, mbc.ram_banks.len() / 0x400);
         for (idx, byte) in bytes.iter().enumerate() {
             mbc.rom_banks[idx] = *byte;
         }
