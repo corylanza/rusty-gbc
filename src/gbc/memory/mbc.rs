@@ -3,6 +3,8 @@ use std::io::prelude::*;
 use std::str;
 
 const MEMORY_BANK_TYPE_ADDRESS: u16 = 0x0147;
+const ROM_SIZE_ADDRESS: u16 = 0x0148;
+const RAM_SIZE_ADDRESS: u16 = 0x0149;
 const TITLE_ADDRESS_MINUS_1: u16 = 0x0133;
 
 pub trait MemoryBank {
@@ -19,9 +21,27 @@ impl dyn MemoryBank {
         file.read_to_end(&mut buffer).unwrap();
 
         let mbc_type = buffer[MEMORY_BANK_TYPE_ADDRESS as usize];
+        let rom_size = buffer[ROM_SIZE_ADDRESS as usize];
+        let rom_bank_count = match rom_size {
+            0 => 0,
+            1 ..= 8 => 2u8.pow(rom_size as u32 + 1),
+            _ => panic!("Unsupported ROM size {:02X}", rom_size)
+        };
+        println!("{} ROM banks", rom_bank_count);
+        let ram_size = buffer[RAM_SIZE_ADDRESS as usize];
+        let (ram_bank_count, ram_bank_size) = match ram_size {
+            0 => (0, 0),
+            1 => (1, 0x800),
+            2 => (1, 0x2000),
+            3 => (4, 0x2000),
+            4 => (16, 0x2000),
+            5 => (8, 0x2000),
+            _ => panic!("Unsupported RAM size {:02X}", ram_size)
+        };
+        println!("{} RAM banks of size {:04X}", ram_bank_count, ram_bank_size);
         match mbc_type {
             0 => NoMBC::load_rom(&buffer),
-            1..=3 => Box::new(MBC1::load_rom(&buffer)),
+            1..=3 => Box::new(MBC1::load_rom(&buffer, rom_bank_count, ram_bank_count, ram_bank_size)),
             _ => panic!("not implemented {}", mbc_type)
         }
     }
@@ -108,11 +128,11 @@ struct MBC1 {
 }
 
 impl MBC1 {
-    fn load_rom(bytes: &Vec<u8>) -> MBC1 {
+    fn load_rom(bytes: &Vec<u8>, rom_bank_count: u8, ram_bank_count: u8, ram_bank_size: u16) -> MBC1 {
         println!("MBC1");
         let mut mbc = MBC1 {
-            rom_banks: vec![0; 0x4000 * 0x80],//[[0; 0x4000]; 0x80],
-            ram_banks: vec![0; 0x2000 * 4],//[[0; 0x2000]; 4],
+            rom_banks: vec![0; 0x4000 * (rom_bank_count + 1) as usize],
+            ram_banks: vec![0; ram_bank_size as usize * ram_bank_count as usize],
             selected_rom: 0,
             two_bits: 0,
             ram_enabled: false,
