@@ -62,10 +62,11 @@ impl Mmu {
     }
 
     pub fn mmu_step(&mut self, cycles: u8) {
-        let int = self.read(INTERUPT_REQUEST) | self.gpu.interrupts | self.input.interrupt;
+        let int = self.read(INTERUPT_REQUEST) | self.gpu.interrupts | self.input.interrupt | self.timer.interrupt;
         self.write(INTERUPT_REQUEST, int);
         self.gpu.interrupts = 0;
         self.input.interrupt = 0;
+        self.timer.interrupt = 0;
         self.timer.timer_step(cycles);
         let dma = self.dma;
         match dma {
