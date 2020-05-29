@@ -1,5 +1,6 @@
 pub mod gpu;
 pub mod input;
+mod timer;
 mod boot;
 mod mmu;
 mod memory;

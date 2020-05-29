@@ -7,6 +7,7 @@ use std::str;
 use rand::{Rng};
 use super::gpu::Gpu;
 use super::input::Input;
+use super::timer::Timer;
 
 const ROM_START: u16 = 0;
 const ROM_END: u16 = 0x7FFF;
@@ -35,6 +36,7 @@ pub struct Mmu {
     mbc: Box<dyn MemoryBank>,
     wram: Ram,
     pub input: Input,
+    timer: Timer,
     io: Ram,
     hram: Ram,
     interupt_switch: u8,
@@ -51,6 +53,7 @@ impl Mmu {
             dma: None,
             wram: Ram::new(0x2000),
             input: Input::new(),
+            timer: Timer::new(),
             io: Ram::new(0x80),
             hram: Ram::new(0x7F),
             interupt_switch: 0,
@@ -63,6 +66,7 @@ impl Mmu {
         self.write(INTERUPT_REQUEST, int);
         self.gpu.interrupts = 0;
         self.input.interrupt = 0;
+        self.timer.timer_step(cycles);
         let dma = self.dma;
         match dma {
             Some(ref dma) => self.dma_step(*dma, cycles),
@@ -82,8 +86,10 @@ impl Mmu {
             OAM_START ..= OAM_END => self.gpu.read_from_oam(address - OAM_START),
             0xFEA0 ..= 0xFEFF => 0xFF, // Unusable returns this
             IO_START => self.input.read_joypad(),
-            // DIV register
-            0xFF04 => rand::thread_rng().gen_range(0, 0xFF),
+            0xFF04 => self.timer.div,
+            0xFF05 => self.timer.tima,
+            0xFF06 => self.timer.tma,
+            0xFF07 => self.timer.get_timer_control(),
             0xFF40 => self.gpu.get_lcdc_control(),
             0xFF41 => self.gpu.get_lcdc_status(),
             0xFF42 => self.gpu.get_scy(),
@@ -135,10 +141,10 @@ impl Mmu {
             0xFF00 => self.input.write_joypad(value),
             // 0xFF01 SB serial transfer data
             // 0xFF02 SC serial transfer control
-            // 0xFF04 DIV divider register
-            // 0xFF05 TIMA timer counter
-            // 0xFF06 TMA timer modulo
-            // 0xFF07 TAC timer control
+            0xFF04 => self.timer.div = 0, // writing any value to DIV resets it to 0
+            0xFF05 => self.timer.tima = value,
+            0xFF06 => self.timer.tma = value,
+            0xFF07 => self.timer.set_timer_control(value),
             0xFF40 => self.gpu.set_lcdc_control(value),
             0xFF41 => self.gpu.set_lcdc_status(value),
             0xFF42 => self.gpu.set_scy(value),
