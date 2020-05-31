@@ -3,7 +3,7 @@ const TIMER_ENABLE:u8 = 0b00000100;
 const TIMER_CLOCK_SPEED:u8 = 0b00000011;
 
 pub struct Timer {
-    pub div: u8,
+    div: u16,
     /// Timer counter
     pub tima: u8,
     // Timer modulo
@@ -28,7 +28,7 @@ impl Timer {
     }
 
     pub fn timer_step(&mut self, cycles: u8) {
-        self.div = self.div.wrapping_add(cycles);
+        self.div = self.div.wrapping_add(cycles as u16);
         if self.enabled {
             self.counter += cycles as u16;
             if self.counter > self.increment_in_cpu_cycles {
@@ -36,10 +36,19 @@ impl Timer {
                 if self.tima == 0xFF {
                     self.interrupt = TIMER_INTERRUPT;
                     self.tima = self.tma;
+                } else {
+                    self.tima += 1;
                 }
-                self.tima += 1;
             }
         }
+    }
+
+    pub fn get_div(&self) -> u8 {
+        (self.div >> 8) as u8
+    }
+
+    pub fn reset_div(&mut self) {
+        self.div = 0;
     }
 
     pub fn get_timer_control(&self) -> u8 {

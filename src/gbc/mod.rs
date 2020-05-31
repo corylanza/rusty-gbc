@@ -103,11 +103,11 @@ impl Cpu {
     }
 
     pub fn step_cycles(&mut self) -> u8 {
+        let was_halted = self.halted;
         if self.handle_interrupts() > 0 {
-            return 20
+            return if was_halted { 24 } else { 20 };
         }
         if self.halted {
-            //self.mem.gpu.render_background();
             return 4
         }
         self.next_intruction()

@@ -87,7 +87,7 @@ impl Mmu {
             OAM_START ..= OAM_END => self.gpu.read_from_oam(address - OAM_START),
             0xFEA0 ..= 0xFEFF => 0xFF, // Unusable returns this
             IO_START => self.input.read_joypad(),
-            0xFF04 => self.timer.div,
+            0xFF04 => self.timer.get_div(),
             0xFF05 => self.timer.tima,
             0xFF06 => self.timer.tma,
             0xFF07 => self.timer.get_timer_control(),
@@ -142,7 +142,7 @@ impl Mmu {
             0xFF00 => self.input.write_joypad(value),
             // 0xFF01 SB serial transfer data
             // 0xFF02 SC serial transfer control
-            0xFF04 => self.timer.div = 0, // writing any value to DIV resets it to 0
+            0xFF04 => self.timer.reset_div(), // writing any value to DIV resets it to 0
             0xFF05 => self.timer.tima = value,
             0xFF06 => self.timer.tma = value,
             0xFF07 => self.timer.set_timer_control(value),
