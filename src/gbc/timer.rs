@@ -31,8 +31,8 @@ impl Timer {
         self.div = self.div.wrapping_add(cycles as u16);
         if self.enabled {
             self.counter += cycles as u16;
-            if self.counter > self.increment_in_cpu_cycles {
-                self.counter = 0;
+            if self.counter >= self.increment_in_cpu_cycles {
+                self.counter -= self.increment_in_cpu_cycles;
                 if self.tima == 0xFF {
                     self.interrupt = TIMER_INTERRUPT;
                     self.tima = self.tma;

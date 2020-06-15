@@ -206,6 +206,9 @@ impl Gpu {
     pub fn set_lcdc_control(&mut self, value: u8) {
         let bit = |flag: u8| value & 1 << flag > 0;
         self.lcd_enable = bit(7);
+        if !self.lcd_enable {
+            self.ly = 0
+        }
         self.window_tile_map = bit(6);
         self.window_enable = bit(5);
         self.bg_window_tile_data = bit(4);
@@ -231,10 +234,10 @@ impl Gpu {
 
     pub fn set_lcdc_status(&mut self, value: u8) {
         let bit = |flag: u8| value & 1 << flag > 0;
-        self.coincidence_interrupt_enabled = bit(7);
-        self.oam_interrupt_enabled = bit(6);
-        self.v_blank_interrupt_enabled = bit(5);
-        self.h_blank_interrupt_enabled = bit(4);
+        self.coincidence_interrupt_enabled = bit(6);
+        self.oam_interrupt_enabled = bit(5);
+        self.v_blank_interrupt_enabled = bit(4);
+        self.h_blank_interrupt_enabled = bit(3);
         self.updated() 
     }
 
@@ -264,7 +267,7 @@ impl Gpu {
     pub fn set_scx(&mut self, value: u8) { self.scx = value;  self.updated() }
     pub fn get_scx(&self) -> u8 { self.scx }
 
-    pub fn get_ly(&self) -> u8 { self.ly }
+    pub fn get_ly(&self) -> u8 { if self.lcd_enable { self.ly } else { 0 } }
 
     pub fn set_lyc(&mut self, value: u8) { self.lyc = value; self.updated() }
     pub fn get_lyc(&self) -> u8 { self.lyc }
@@ -288,6 +291,10 @@ impl Gpu {
 
 
     fn draw_scanline(&mut self, display: &mut Display) {
+        // TODO window priority works differently for CGB, on DMG works as enable bg
+        if !self.bg_window_priority {
+            return;
+        }
         display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
             let y = self.ly.wrapping_add(self.scy);
             for x in 0u8..32 {
@@ -394,7 +401,7 @@ impl Gpu {
                             
                             for y in 0..8 {
                                 let sprite_y = if sprite.flags & SPRITE_Y_FLIP == SPRITE_Y_FLIP {
-                                    sprite.y.wrapping_sub(8).wrapping_sub(y) as usize
+                                    sprite.y.wrapping_sub(8).wrapping_sub(y + 1) as usize
                                 } else {
                                     sprite.y.wrapping_sub(16).wrapping_add(y) as usize
                                 };
