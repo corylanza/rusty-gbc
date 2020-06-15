@@ -49,14 +49,16 @@ impl Cpu {
         let int_enable = self.mem.read(mmu::INTERUPTS_ENABLE);
         let int_request = self.mem.read(mmu::INTERUPT_REQUEST);
         for flag in vec![V_BLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT, JOYPAD_INTERRUPT] {
-            if self.handle_interrupt(flag, int_enable, int_request) {
-                return 20
+            let interrupt_cycles = self.handle_interrupt(flag, int_enable, int_request);
+            if interrupt_cycles > 0 {
+                return interrupt_cycles
             }
         }
         0
     }
 
-    fn handle_interrupt(&mut self, flag: u8, enabled: u8, requested: u8) -> bool {
+    fn handle_interrupt(&mut self, flag: u8, enabled: u8, requested: u8) -> u8 {
+        let was_halted = self.halted;
         if enabled & requested & flag == flag {
             self.halted = false;
             if self.ime {
@@ -75,10 +77,11 @@ impl Cpu {
                 if self.log {
                     println!("handled INT {:02X}", self.regs.pc);
                 }
-                return true;
+                return if was_halted { 24 } else { 20 }
             }
+            return if was_halted { 4 } else { 0 }
         }
-        false
+        0
     }
 
     fn check_breakpoint(&mut self) {
@@ -103,9 +106,9 @@ impl Cpu {
     }
 
     pub fn step_cycles(&mut self) -> u8 {
-        let was_halted = self.halted;
-        if self.handle_interrupts() > 0 {
-            return if was_halted { 24 } else { 20 };
+        let interrupt_cycles = self.handle_interrupts();
+        if interrupt_cycles > 0 {
+            return interrupt_cycles;
         }
         if self.halted {
             return 4
