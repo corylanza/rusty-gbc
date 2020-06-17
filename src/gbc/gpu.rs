@@ -13,6 +13,8 @@ const SPRITE_Y_FLIP: u8 = 0b01000000; // (0=Normal, 1=Vertically mirrored)
 const SPRITE_X_FLIP: u8 = 0b00100000; //(0=Normal, 1=Horizontally mirrored)
 const SPRITE_PALETTE_NUM: u8 = 0b00010000; // **Non CGB Mode Only** (0=OBP0, 1=OBP1)
 
+const WINDOW_X_SHIFT: u8 = 7;
+
 const H_BLANK_MODE: u8 = 0;
 const V_BLANK_MODE: u8 = 1;
 const OAM_SEARCH_MODE: u8 = 2;
@@ -24,6 +26,7 @@ const WHITE: Color = Color::RGB(0xE6, 0xFF, 0xE6);
 const LIGHT_GRAY: Color = Color::RGB(0x00, 0x80, 0x40);
 const DARK_GRAY: Color = Color::RGB(0x70, 0xDB, 0x70);
 const BLACK: Color = Color::RGB(0x00, 0x00, 0x00);
+const BLUE: Color = Color::RGB(0xFF, 0x00, 0x00);
 
 pub struct Gpu {
     vram: [u8; 0x8000],
@@ -54,6 +57,7 @@ pub struct Gpu {
     ly: u8,
     lyc: u8,
     wy: u8,
+    /// Window x start minus seven
     wx: u8,            
     bgp: u8,
     obp0: u8,
@@ -142,7 +146,7 @@ impl Gpu {
                 0..=80 => {
                     /* OAM SEARCH */
                     if self.get_lcdc_mode() != OAM_SEARCH_MODE {
-                        //self.sprites = self.get_sprite(n: u8)
+                        self.get_sprites_for_current_scanline();
                         self.set_lcdc_mode(OAM_SEARCH_MODE);
                         if self.oam_interrupt_enabled {
                             self.interrupts |= STAT_INTERRUPT;
@@ -181,8 +185,8 @@ impl Gpu {
                 self.framecount += 1;
                 
                 if self.updated {
-                    self.display_window(display);
-                    self.display_sprites(display);
+                    //self.display_window(display);
+                    //self.display_sprites(display);
                     display.render_frame();
                 }
                 
@@ -288,30 +292,60 @@ impl Gpu {
     pub fn get_obp1(&self) -> u8 { self.obp1 }
 
 
+    fn get_color(& self, pixel_x: u8, pixel_y: u8) -> Color {
+        // Compare x to all 10 sprites, if any are visible draw that scanline of the sprite
+        for s in &self.sprites {
+            if !self.sprite_enable {
+                break
+            }
+            match s {
+                Some(sprite) => {
+                    let mut sprite_x = (pixel_x).wrapping_sub(sprite.x).wrapping_add(8);
+                    let mut sprite_y = (pixel_y).wrapping_sub(sprite.y).wrapping_add(16);
+                    match (sprite_x, sprite_y) {
+                        (0..=7, 0..=7) => {
+                            if sprite.flags & SPRITE_X_FLIP == SPRITE_X_FLIP { sprite_x = 7 - sprite_x }
+                            if sprite.flags & SPRITE_Y_FLIP == SPRITE_Y_FLIP { sprite_y = 7 - sprite_y }
+                            let tile = self.get_sprite_tile(sprite.tile_number);
+                            match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[sprite_y as usize][sprite_x as usize]) {
+                                Some(color) => return color,
+                                None => {}
+                            }
+                        }
+                        _ => {}
+                    }
+                },
+                None => {}
+            }
+        }
 
+        // If the window is enabled and wx and wy are less than x and y draw window
+        if false && self.window_enable && pixel_x >= self.wx + WINDOW_X_SHIFT && pixel_y >= self.wy {
+            let (window_x, window_y) = (pixel_x - self.wx + WINDOW_X_SHIFT, pixel_y - self.wy);
+            let tile = self.get_tile_at(self.window_tile_map, window_x / 8, window_y / 8);
+            return self.get_bg_color(tile[(window_x % 8) as usize][(window_y % 8) as usize])
+        }
+        // If the background is enabled draw the background
+        
+        // TODO window priority works differently for CGB, on DMG works as enable bg
+        if self.bg_window_priority {
+            let (scrolled_x, scrolled_y) = (pixel_x.wrapping_add(self.scx), pixel_y.wrapping_add(self.scy));
+            let tile = self.get_tile_at(self.bg_tile_map_select, scrolled_x / 8, scrolled_y / 8);
+            return self.get_bg_color(tile[(scrolled_y % 8)as usize][(scrolled_x % 8) as usize])
+        }
+        self.get_bg_color(0)
+    }
 
     fn draw_scanline(&mut self, display: &mut Display) {
-        // TODO window priority works differently for CGB, on DMG works as enable bg
-        if !self.bg_window_priority {
-            return;
-        }
+        let pixel_y = self.ly;
         display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
-            let y = self.ly.wrapping_add(self.scy);
-            for x in 0u8..32 {
-                let x = x * 8;
-                let tile = self.get_tile_at(self.bg_tile_map_select, x / 8, y / 8);
-                for xx in 0..8 {
-                    let x_pix = x.wrapping_add(xx).wrapping_sub(self.scx);
-                    if x_pix < SCREEN_WIDTH && self.ly < SCREEN_HEIGHT {
-                        let buf_idx = (self.ly as usize * pitch) + (x_pix as usize * BYTES_PER_PIXEL as usize);
-                        let color = self.get_bg_color(tile[(y % 8)as usize][xx as usize]);
-                        
-                        buffer[buf_idx] = color.b;
-                        buffer[buf_idx + 1] = color.g;
-                        buffer[buf_idx + 2] = color.r;
-                        buffer[buf_idx + 3] = color.a;
-                    }
-                }
+            for pixel_x in 0 .. SCREEN_WIDTH {
+                let buf_idx = (pixel_y as usize * pitch) + (pixel_x as usize * BYTES_PER_PIXEL as usize);
+                let color = self.get_color(pixel_x, pixel_y);
+                buffer[buf_idx] = color.b;
+                buffer[buf_idx + 1] = color.g;
+                buffer[buf_idx + 2] = color.r;
+                buffer[buf_idx + 3] = color.a;
             }
         }).unwrap();
         
@@ -356,74 +390,20 @@ impl Gpu {
         }
     }
 
-    fn display_window(&mut self, display: &mut Display) {
-        if self.window_enable {
-            display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
-                for rx in 0..SCREEN_WIDTH {
-                    let x = rx as u16 + self.wx as u16;
-                    for ry in 0..SCREEN_HEIGHT {
-                        let y = ry as u16 + self.wy as u16;
-                        if x < SCREEN_WIDTH as u16 && y < SCREEN_HEIGHT as u16 {
-                            let tile = self.get_tile_at(self.window_tile_map, x as u8 / 8, y as u8 / 8);
-                            let buf_idx = (ry as usize * pitch) + (rx as usize * BYTES_PER_PIXEL as usize);
-                            let color = self.get_bg_color(tile[(y % 8) as usize][(x % 8) as usize]);
-                            
-                            buffer[buf_idx] = color.b;
-                            buffer[buf_idx + 1] = color.g;
-                            buffer[buf_idx + 2] = color.r;
-                            buffer[buf_idx + 3] = color.a;
-                        }
-                    }
-                }
-            }).unwrap();
-            //let tile = self.get_tile_at(self.window_tile_map, 0, 0);
-        }
-    }
-
-    fn display_sprites(&mut self, display: &mut Display) {
-        if !self.sprite_enable {
-            return;
-        }
-
-        for i in 0 .. 40 {
+    fn get_sprites_for_current_scanline(&mut self) {
+        let mut count = 0;
+        for i in 0..40 {
             let sprite = self.get_sprite(i);
-            match (sprite.x, sprite.y) {
-                (1 ..= SPRITE_X_LIM, 1 ..= SPRITE_Y_LIM) => {
-                    let tile = self.get_sprite_tile(sprite.tile_number);
-                    display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
-                        let flip = sprite.flags & SPRITE_X_FLIP == SPRITE_X_FLIP;
-                        for x in 0..8 {
-                            let sprite_x = if flip { 
-                                sprite.x.wrapping_sub(x +1) as usize
-                            } else {
-                                sprite.x.wrapping_sub(8).wrapping_add(x) as usize
-                            };
-                            
-                            for y in 0..8 {
-                                let sprite_y = if sprite.flags & SPRITE_Y_FLIP == SPRITE_Y_FLIP {
-                                    sprite.y.wrapping_sub(8).wrapping_sub(y + 1) as usize
-                                } else {
-                                    sprite.y.wrapping_sub(16).wrapping_add(y) as usize
-                                };
-                                if  sprite_x < SCREEN_WIDTH as usize && sprite_y < SCREEN_HEIGHT as usize {
-                                    let buf_idx = ((sprite_y) * pitch) + ((sprite_x)* BYTES_PER_PIXEL as usize);
-                                    let color = self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0,tile[y as usize][x as usize]);
-                                    match color {
-                                        None => {},
-                                        Some(color) => {
-                                            buffer[buf_idx] = color.b;
-                                            buffer[buf_idx + 1] = color.g;
-                                            buffer[buf_idx + 2] = color.r;
-                                            buffer[buf_idx + 3] = color.a;
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }).unwrap();
-                },
-                _ => {}
+            if sprite.x != 0 && self.ly + 16 >= sprite.y && self.ly + 16 < sprite.y + if self.double_sprite_size { 16 } else { 8 } {
+                self.sprites[count] = Some(sprite);
+                count += 1;
+                if count == 10 {
+                    break;
+                }
             }
+        }
+        for i in count..10 {
+            self.sprites[i] = None;
         }
     }
 
@@ -477,7 +457,7 @@ impl Gpu {
             1 => Some(LIGHT_GRAY),
             2 => Some(DARK_GRAY),
             3 => Some(BLACK),
-            _ => None
+            _ => Some(BLUE)
         }
     }
 
