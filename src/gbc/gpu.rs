@@ -320,15 +320,15 @@ impl Gpu {
         }
 
         // If the window is enabled and wx and wy are less than x and y draw window
-        if self.window_enable && pixel_x >= self.wx + WINDOW_X_SHIFT && pixel_y >= self.wy {
+        if self.window_enable && pixel_x >= self.wx && pixel_y >= self.wy {
             let (window_x, window_y) = (pixel_x - self.wx + WINDOW_X_SHIFT, pixel_y - self.wy);
             let tile = self.get_tile_at(self.window_tile_map, window_x / 8, window_y / 8);
-            return self.get_bg_color(tile[(window_x % 8) as usize][(window_y % 8) as usize])
+            return self.get_bg_color(tile[(window_y % 8) as usize][(window_x % 8) as usize])
         }
         // If the background is enabled draw the background
         
         // TODO window priority works differently for CGB, on DMG works as enable bg
-        if self.bg_window_priority {
+        if true {//} self.bg_window_priority {
             let (scrolled_x, scrolled_y) = (pixel_x.wrapping_add(self.scx), pixel_y.wrapping_add(self.scy));
             let tile = self.get_tile_at(self.bg_tile_map_select, scrolled_x / 8, scrolled_y / 8);
             return self.get_bg_color(tile[(scrolled_y % 8)as usize][(scrolled_x % 8) as usize])
