@@ -320,7 +320,7 @@ impl Gpu {
         }
 
         // If the window is enabled and wx and wy are less than x and y draw window
-        if false && self.window_enable && pixel_x >= self.wx + WINDOW_X_SHIFT && pixel_y >= self.wy {
+        if self.window_enable && pixel_x >= self.wx + WINDOW_X_SHIFT && pixel_y >= self.wy {
             let (window_x, window_y) = (pixel_x - self.wx + WINDOW_X_SHIFT, pixel_y - self.wy);
             let tile = self.get_tile_at(self.window_tile_map, window_x / 8, window_y / 8);
             return self.get_bg_color(tile[(window_x % 8) as usize][(window_y % 8) as usize])
