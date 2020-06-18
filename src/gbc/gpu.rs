@@ -8,7 +8,7 @@ use super::{V_BLANK_INTERRUPT, STAT_INTERRUPT};
 // const SPRITE_X_LIM: u8 = SCREEN_WIDTH + 8;
 // const SPRITE_Y_LIM: u8 = SCREEN_HEIGHT + 16;
 
-//const SPRITE_OBJ_TO_BG_PRIORITY: u8 = 0b01000000; // (0=OBJ Above BG, 1=OBJ Behind BG color 1-3) //(Used for both BG and Window. BG color 0 is always behind OBJ)
+const SPRITE_OBJ_TO_BG_PRIORITY: u8 = 0b10000000; // (0=OBJ Above BG, 1=OBJ Behind BG color 1-3) //(Used for both BG and Window. BG color 0 is always behind OBJ)
 const SPRITE_Y_FLIP: u8 = 0b01000000; // (0=Normal, 1=Vertically mirrored)
 const SPRITE_X_FLIP: u8 = 0b00100000; //(0=Normal, 1=Horizontally mirrored)
 const SPRITE_PALETTE_NUM: u8 = 0b00010000; // **Non CGB Mode Only** (0=OBP0, 1=OBP1)
@@ -57,6 +57,7 @@ pub struct Gpu {
     ly: u8,
     lyc: u8,
     wy: u8,
+    window_internal_line_counter: Option<u8>,
     /// Window x start minus seven
     wx: u8,            
     bgp: u8,
@@ -111,6 +112,7 @@ impl Gpu {
             ly: 0,
             lyc: 0,
             wy: 0,
+            window_internal_line_counter: None,
             wx: 0,
             bgp: 0,
             obp0: 0,
@@ -158,6 +160,12 @@ impl Gpu {
                     if self.get_lcdc_mode() != LCD_TRANSFER_MODE {
                         self.set_lcdc_mode(LCD_TRANSFER_MODE);
                         if self.updated {
+                            if self.window_enable && self.ly == self.wy && self.window_internal_line_counter.is_none() {
+                                self.window_internal_line_counter = Some(self.wy);
+                            } else if self.window_enable && self.window_internal_line_counter.is_some() {
+                                self.window_internal_line_counter = Some(self.window_internal_line_counter.unwrap() + 1);
+                            }
+
                             self.draw_scanline(display);
                         }
                     }
@@ -183,10 +191,9 @@ impl Gpu {
                 self.interrupts |= V_BLANK_INTERRUPT;
                 
                 self.framecount += 1;
-                
+                self.window_internal_line_counter = None;
+
                 if self.updated {
-                    //self.display_window(display);
-                    //self.display_sprites(display);
                     display.render_frame();
                 }
                 
@@ -293,6 +300,14 @@ impl Gpu {
 
 
     fn get_color(& self, pixel_x: u8, pixel_y: u8) -> Color {
+        // TODO window priority works differently for CGB, on DMG works as enable bg
+        let bg_color = if self.bg_window_priority {
+            let (scrolled_x, scrolled_y) = (pixel_x.wrapping_add(self.scx), pixel_y.wrapping_add(self.scy));
+            let tile = self.get_tile_at(self.bg_tile_map_select, scrolled_x / 8, scrolled_y / 8);
+            tile[(scrolled_y % 8)as usize][(scrolled_x % 8) as usize]
+        } else { 0 };
+
+
         // Compare x to all 10 sprites, if any are visible draw that scanline of the sprite
         for sprite in self.sprites.iter().filter(|x| x.is_some()).map(|x| x.as_ref().unwrap()) {
             if !self.sprite_enable {
@@ -311,7 +326,9 @@ impl Gpu {
                         _ => panic!()
                     };
                     match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[(sprite_y % 8) as usize][sprite_x as usize]) {
-                        Some(color) => return color,
+                        Some(color) => {
+                            return color
+                        },
                         None => {}
                     }
                 }
@@ -319,10 +336,13 @@ impl Gpu {
                     if sprite.flags & SPRITE_X_FLIP == SPRITE_X_FLIP { sprite_x = 7 - sprite_x }
                     if sprite.flags & SPRITE_Y_FLIP == SPRITE_Y_FLIP { sprite_y = 7 - sprite_y }
                     let tile = self.get_sprite_tile(sprite.tile_number);
-                    match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[sprite_y as usize][sprite_x as usize]) {
-                        Some(color) => return color,
-                        None => {}
+                    if sprite.flags & SPRITE_OBJ_TO_BG_PRIORITY == 0 || bg_color == 0  {
+                        match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[sprite_y as usize][sprite_x as usize]) {
+                            Some(color) => return color,
+                            None => {}
+                        }                
                     }
+
                 }
                 _ => {}
             }
@@ -336,13 +356,7 @@ impl Gpu {
         }
         // If the background is enabled draw the background
         
-        // TODO window priority works differently for CGB, on DMG works as enable bg
-        if self.bg_window_priority {
-            let (scrolled_x, scrolled_y) = (pixel_x.wrapping_add(self.scx), pixel_y.wrapping_add(self.scy));
-            let tile = self.get_tile_at(self.bg_tile_map_select, scrolled_x / 8, scrolled_y / 8);
-            return self.get_bg_color(tile[(scrolled_y % 8)as usize][(scrolled_x % 8) as usize])
-        }
-        self.get_bg_color(0)
+        self.get_bg_color(bg_color)
     }
 
     fn draw_scanline(&mut self, display: &mut Display) {
