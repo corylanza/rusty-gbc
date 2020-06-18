@@ -4,7 +4,6 @@ use super::Registers;
 use super::memory::ram::Ram;
 use super::memory::mbc::MemoryBank;
 use std::str;
-use rand::{Rng};
 use super::gpu::Gpu;
 use super::input::Input;
 use super::timer::Timer;

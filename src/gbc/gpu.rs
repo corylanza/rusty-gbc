@@ -5,8 +5,8 @@ use crate::Display;
 use crate::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use super::{V_BLANK_INTERRUPT, STAT_INTERRUPT};
 
-const SPRITE_X_LIM: u8 = SCREEN_WIDTH + 8;
-const SPRITE_Y_LIM: u8 = SCREEN_HEIGHT + 16;
+// const SPRITE_X_LIM: u8 = SCREEN_WIDTH + 8;
+// const SPRITE_Y_LIM: u8 = SCREEN_HEIGHT + 16;
 
 //const SPRITE_OBJ_TO_BG_PRIORITY: u8 = 0b01000000; // (0=OBJ Above BG, 1=OBJ Behind BG color 1-3) //(Used for both BG and Window. BG color 0 is always behind OBJ)
 const SPRITE_Y_FLIP: u8 = 0b01000000; // (0=Normal, 1=Vertically mirrored)
@@ -294,28 +294,37 @@ impl Gpu {
 
     fn get_color(& self, pixel_x: u8, pixel_y: u8) -> Color {
         // Compare x to all 10 sprites, if any are visible draw that scanline of the sprite
-        for s in &self.sprites {
+        for sprite in self.sprites.iter().filter(|x| x.is_some()).map(|x| x.as_ref().unwrap()) {
             if !self.sprite_enable {
                 break
             }
-            match s {
-                Some(sprite) => {
-                    let mut sprite_x = (pixel_x).wrapping_sub(sprite.x).wrapping_add(8);
-                    let mut sprite_y = (pixel_y).wrapping_sub(sprite.y).wrapping_add(16);
-                    match (sprite_x, sprite_y) {
-                        (0..=7, 0..=7) => {
-                            if sprite.flags & SPRITE_X_FLIP == SPRITE_X_FLIP { sprite_x = 7 - sprite_x }
-                            if sprite.flags & SPRITE_Y_FLIP == SPRITE_Y_FLIP { sprite_y = 7 - sprite_y }
-                            let tile = self.get_sprite_tile(sprite.tile_number);
-                            match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[sprite_y as usize][sprite_x as usize]) {
-                                Some(color) => return color,
-                                None => {}
-                            }
-                        }
-                        _ => {}
+            let mut sprite_x = (pixel_x).wrapping_sub(sprite.x).wrapping_add(8);
+            let mut sprite_y = (pixel_y).wrapping_sub(sprite.y).wrapping_add(16);
+            match (self.double_sprite_size, sprite_x, sprite_y) {
+                (true, 0..=7, 0..=15) => {
+                    if sprite.flags & SPRITE_X_FLIP == SPRITE_X_FLIP { sprite_x = 15 - sprite_x }
+                    if sprite.flags & SPRITE_Y_FLIP == SPRITE_Y_FLIP { sprite_y = 15 - sprite_y }
+                    let tile = match sprite_y {
+                        // In 8x16 mode, the lower bit of the tile number is ignored. IE: the upper 8x8 tile is "NN AND FEh", and the lower 8x8 tile is "NN OR 01h"
+                        0..=7 => self.get_sprite_tile(sprite.tile_number & 0xFE),
+                        8..=15 => self.get_sprite_tile(sprite.tile_number | 0x01),
+                        _ => panic!()
+                    };
+                    match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[(sprite_y % 8) as usize][sprite_x as usize]) {
+                        Some(color) => return color,
+                        None => {}
                     }
-                },
-                None => {}
+                }
+                (false, 0..=7, 0..=7) => {
+                    if sprite.flags & SPRITE_X_FLIP == SPRITE_X_FLIP { sprite_x = 7 - sprite_x }
+                    if sprite.flags & SPRITE_Y_FLIP == SPRITE_Y_FLIP { sprite_y = 7 - sprite_y }
+                    let tile = self.get_sprite_tile(sprite.tile_number);
+                    match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[sprite_y as usize][sprite_x as usize]) {
+                        Some(color) => return color,
+                        None => {}
+                    }
+                }
+                _ => {}
             }
         }
 
