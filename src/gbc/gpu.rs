@@ -135,12 +135,6 @@ impl Gpu {
             self.framecount = 0;
         }
 
-        if self.coincidence_interrupt_enabled && self.lyc == self.ly  {
-            self.coincidence_flag = true;
-            self.interrupts |= STAT_INTERRUPT;
-            // TODO this likely shouldn't request an interrupt at every step
-        }
-
         if self.ly < SCREEN_HEIGHT {
             match self.cycle_count {
                 0..=80 => {
@@ -150,6 +144,12 @@ impl Gpu {
                         self.set_lcdc_mode(OAM_SEARCH_MODE);
                         if self.oam_interrupt_enabled {
                             self.interrupts |= STAT_INTERRUPT;
+                        }
+
+                        if self.coincidence_interrupt_enabled && self.lyc == self.ly  {
+                            self.coincidence_flag = true;
+                            self.interrupts |= STAT_INTERRUPT;
+                            // TODO set all STAT interrupts in same place and verify that is correct place
                         }
                     }
                 },
@@ -328,7 +328,7 @@ impl Gpu {
         // If the background is enabled draw the background
         
         // TODO window priority works differently for CGB, on DMG works as enable bg
-        if true {//} self.bg_window_priority {
+        if self.bg_window_priority {
             let (scrolled_x, scrolled_y) = (pixel_x.wrapping_add(self.scx), pixel_y.wrapping_add(self.scy));
             let tile = self.get_tile_at(self.bg_tile_map_select, scrolled_x / 8, scrolled_y / 8);
             return self.get_bg_color(tile[(scrolled_y % 8)as usize][(scrolled_x % 8) as usize])
