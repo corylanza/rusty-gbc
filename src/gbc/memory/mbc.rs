@@ -189,7 +189,7 @@ impl MemoryBank for MBC1 {
     fn read_rom(&self, address: u16) -> u8 {
         match address {
             0 ..= 0x3FFF => self.rom_banks[address as usize],
-            0x4000 ..= 0x7FFF => self.rom_banks[(self.selected_rom() as usize * 0x4000) + address as usize],
+            0x4000 ..= 0x7FFF => self.rom_banks[(self.selected_rom() as usize * 0x4000) + (address - 0x4000) as usize],
             _ => panic!("ROM goes only to 0x7FFF, tried to read outside bounds")
         }
     }
