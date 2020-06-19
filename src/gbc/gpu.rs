@@ -161,8 +161,8 @@ impl Gpu {
                         self.set_lcdc_mode(LCD_TRANSFER_MODE);
                         if self.updated {
                             if self.window_enable && self.ly == self.wy && self.window_internal_line_counter.is_none() {
-                                self.window_internal_line_counter = Some(self.wy);
-                            } else if self.window_enable && self.window_internal_line_counter.is_some() {
+                                self.window_internal_line_counter = Some(0);
+                            } else if self.window_enable && self.wx < SCREEN_WIDTH + WINDOW_X_SHIFT && self.window_internal_line_counter.is_some() {
                                 self.window_internal_line_counter = Some(self.window_internal_line_counter.unwrap() + 1);
                             }
 
@@ -302,9 +302,8 @@ impl Gpu {
     fn get_color(& self, pixel_x: u8, pixel_y: u8) -> Color {
         let bg_or_win_color = // If the window is enabled and wx and wy are less than x and y draw window
             if self.window_enable && pixel_x + WINDOW_X_SHIFT >= self.wx && self.window_internal_line_counter.is_some() { // pixel_y >= self.wy {
-                let (window_x, window_y) = ((pixel_x + WINDOW_X_SHIFT) - self.wx, pixel_y - self.wy);//window_internal_line_counter.unwrap());
+                let (window_x, window_y) = ((pixel_x + WINDOW_X_SHIFT) - self.wx, self.window_internal_line_counter.unwrap());
                 let tile = self.get_tile_at(self.window_tile_map, window_x / 8, window_y / 8);
-                //return RED;
                 tile[(window_y % 8) as usize][(window_x % 8) as usize]
             } else
             // TODO window priority works differently for CGB, on DMG works as enable bg
@@ -358,9 +357,6 @@ impl Gpu {
     }
 
     fn draw_scanline(&mut self, display: &mut Display) {
-        if self.window_enable && self.window_internal_line_counter.is_some() {
-            println!("wy: {} lc: {}", self.wy, self.window_internal_line_counter.unwrap());
-        }
         let pixel_y = self.ly;
         display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
             for pixel_x in 0 .. SCREEN_WIDTH {
