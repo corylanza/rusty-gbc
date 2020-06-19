@@ -19,11 +19,11 @@ impl Input {
 
     pub fn key_pressed(&mut self, key: Keycode) {
         self.interrupt = JOYPAD_INTERRUPT;
-        self.buttons ^= key.bit();
+        self.buttons &= !key.bit();
     }
 
     pub fn key_released(&mut self, key: Keycode) {
-        self.buttons ^= key.bit();
+        self.buttons |= key.bit();
     }
 
     pub fn write_joypad(&mut self, value: u8) {
