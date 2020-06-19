@@ -23,10 +23,10 @@ const LCD_TRANSFER_MODE: u8 = 3;
 const BYTES_PER_PIXEL: u8 = 4; // RGBA8888
 
 const WHITE: Color = Color::RGB(0xE6, 0xFF, 0xE6);
-const LIGHT_GRAY: Color = Color::RGB(0x00, 0x80, 0x40);
+const LIGHT_GRAY: Color = Color::RGB(0x40, 0x80, 0x00);
 const DARK_GRAY: Color = Color::RGB(0x70, 0xDB, 0x70);
 const BLACK: Color = Color::RGB(0x00, 0x00, 0x00);
-const BLUE: Color = Color::RGB(0xFF, 0x00, 0x00);
+const RED: Color = Color::RGB(0xFF, 0x00, 0x00);
 
 pub struct Gpu {
     vram: [u8; 0x8000],
@@ -300,12 +300,19 @@ impl Gpu {
 
 
     fn get_color(& self, pixel_x: u8, pixel_y: u8) -> Color {
-        // TODO window priority works differently for CGB, on DMG works as enable bg
-        let bg_color = if self.bg_window_priority {
-            let (scrolled_x, scrolled_y) = (pixel_x.wrapping_add(self.scx), pixel_y.wrapping_add(self.scy));
-            let tile = self.get_tile_at(self.bg_tile_map_select, scrolled_x / 8, scrolled_y / 8);
-            tile[(scrolled_y % 8)as usize][(scrolled_x % 8) as usize]
-        } else { 0 };
+        let bg_or_win_color = // If the window is enabled and wx and wy are less than x and y draw window
+            if self.window_enable && pixel_x >= self.wx && pixel_y >= self.wy {
+                let (window_x, window_y) = (pixel_x - self.wx + WINDOW_X_SHIFT, pixel_y - self.wy);
+                let tile = self.get_tile_at(self.window_tile_map, window_x / 8, window_y / 8);
+                tile[(window_y % 8) as usize][(window_x % 8) as usize]
+            } else
+            // TODO window priority works differently for CGB, on DMG works as enable bg
+            // If the background is enabled draw the background
+            if self.bg_window_priority {
+                let (scrolled_x, scrolled_y) = (pixel_x.wrapping_add(self.scx), pixel_y.wrapping_add(self.scy));
+                let tile = self.get_tile_at(self.bg_tile_map_select, scrolled_x / 8, scrolled_y / 8);
+                tile[(scrolled_y % 8)as usize][(scrolled_x % 8) as usize]
+            } else { 0 };
 
 
         // Compare x to all 10 sprites, if any are visible draw that scanline of the sprite
@@ -336,27 +343,18 @@ impl Gpu {
                     if sprite.flags & SPRITE_X_FLIP == SPRITE_X_FLIP { sprite_x = 7 - sprite_x }
                     if sprite.flags & SPRITE_Y_FLIP == SPRITE_Y_FLIP { sprite_y = 7 - sprite_y }
                     let tile = self.get_sprite_tile(sprite.tile_number);
-                    if sprite.flags & SPRITE_OBJ_TO_BG_PRIORITY == 0 || bg_color == 0  {
+                    if sprite.flags & SPRITE_OBJ_TO_BG_PRIORITY == 0 || bg_or_win_color == 0  {
                         match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[sprite_y as usize][sprite_x as usize]) {
                             Some(color) => return color,
                             None => {}
                         }                
                     }
-
                 }
                 _ => {}
             }
         }
-
-        // If the window is enabled and wx and wy are less than x and y draw window
-        if self.window_enable && pixel_x >= self.wx && pixel_y >= self.wy {
-            let (window_x, window_y) = (pixel_x - self.wx + WINDOW_X_SHIFT, pixel_y - self.wy);
-            let tile = self.get_tile_at(self.window_tile_map, window_x / 8, window_y / 8);
-            return self.get_bg_color(tile[(window_y % 8) as usize][(window_x % 8) as usize])
-        }
-        // If the background is enabled draw the background
         
-        self.get_bg_color(bg_color)
+        self.get_bg_color(bg_or_win_color)
     }
 
     fn draw_scanline(&mut self, display: &mut Display) {
@@ -365,9 +363,9 @@ impl Gpu {
             for pixel_x in 0 .. SCREEN_WIDTH {
                 let buf_idx = (pixel_y as usize * pitch) + (pixel_x as usize * BYTES_PER_PIXEL as usize);
                 let color = self.get_color(pixel_x, pixel_y);
-                buffer[buf_idx] = color.b;
+                buffer[buf_idx] = color.r;
                 buffer[buf_idx + 1] = color.g;
-                buffer[buf_idx + 2] = color.r;
+                buffer[buf_idx + 2] = color.b;
                 buffer[buf_idx + 3] = color.a;
             }
         }).unwrap();
@@ -475,22 +473,22 @@ impl Gpu {
         if value == 0 {
             return None;
         }
-        match (palette & (0b11 << (2 * value))) >> (2 * value) {
+        match (palette >> (2 * value)) & 0b11 {
             0 => Some(WHITE),
             1 => Some(LIGHT_GRAY),
             2 => Some(DARK_GRAY),
             3 => Some(BLACK),
-            _ => Some(BLUE)
+            _ => Some(RED)
         }
     }
 
     fn get_bg_color(&self, value: u8) -> Color {
-        match (self.bgp & (0b11 << (2 * value))) >> (2 * value) {
+        match (self.bgp >> (2 * value)) & 0b11 {
             0 => WHITE,
             1 => LIGHT_GRAY,
             2 => DARK_GRAY,
             3 => BLACK,
-            _ => Color::RGB(0, 0, 0xff)
+            _ => RED
         }
     }
 
