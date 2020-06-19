@@ -301,9 +301,10 @@ impl Gpu {
 
     fn get_color(& self, pixel_x: u8, pixel_y: u8) -> Color {
         let bg_or_win_color = // If the window is enabled and wx and wy are less than x and y draw window
-            if self.window_enable && pixel_x >= self.wx && pixel_y >= self.wy {
-                let (window_x, window_y) = (pixel_x - self.wx + WINDOW_X_SHIFT, pixel_y - self.wy);
+            if self.window_enable && pixel_x + WINDOW_X_SHIFT >= self.wx && self.window_internal_line_counter.is_some() { // pixel_y >= self.wy {
+                let (window_x, window_y) = ((pixel_x + WINDOW_X_SHIFT) - self.wx, pixel_y - self.wy);//window_internal_line_counter.unwrap());
                 let tile = self.get_tile_at(self.window_tile_map, window_x / 8, window_y / 8);
+                //return RED;
                 tile[(window_y % 8) as usize][(window_x % 8) as usize]
             } else
             // TODO window priority works differently for CGB, on DMG works as enable bg
@@ -313,7 +314,6 @@ impl Gpu {
                 let tile = self.get_tile_at(self.bg_tile_map_select, scrolled_x / 8, scrolled_y / 8);
                 tile[(scrolled_y % 8)as usize][(scrolled_x % 8) as usize]
             } else { 0 };
-
 
         // Compare x to all 10 sprites, if any are visible draw that scanline of the sprite
         for sprite in self.sprites.iter().filter(|x| x.is_some()).map(|x| x.as_ref().unwrap()) {
@@ -358,6 +358,9 @@ impl Gpu {
     }
 
     fn draw_scanline(&mut self, display: &mut Display) {
+        if self.window_enable && self.window_internal_line_counter.is_some() {
+            println!("wy: {} lc: {}", self.wy, self.window_internal_line_counter.unwrap());
+        }
         let pixel_y = self.ly;
         display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
             for pixel_x in 0 .. SCREEN_WIDTH {
