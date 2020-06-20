@@ -218,7 +218,8 @@ impl Gpu {
         let bit = |flag: u8| value & 1 << flag > 0;
         self.lcd_enable = bit(7);
         if !self.lcd_enable {
-            self.ly = 0
+            self.ly = 0;
+            self.set_lcdc_mode(H_BLANK_MODE);
         }
         self.window_tile_map = bit(6);
         self.window_enable = bit(5);
