@@ -331,7 +331,7 @@ impl Gpu {
                         8..=15 => self.get_sprite_tile(sprite.tile_number | 0x01),
                         _ => panic!()
                     };
-                    match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[(sprite_y % 8) as usize][sprite_x as usize]) {
+                    match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[(sprite_y % 8) as usize][(sprite_x % 8) as usize]) {
                         Some(color) => {
                             return color
                         },

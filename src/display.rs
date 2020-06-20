@@ -29,8 +29,6 @@ impl Display<'_> {
 
     pub fn render_frame(&mut self) {
         self.canvas.copy(&self.texture, None, None).unwrap();
-        //self.canvas.set_draw_color(Color::RGB(0, 0, 0));
-        //self.canvas.draw_rect(Rect::new(scx as i32, scy as i32, SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32)).unwrap();
         self.canvas.present();
     }
 }
