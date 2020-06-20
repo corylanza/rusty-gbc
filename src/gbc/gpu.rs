@@ -23,8 +23,8 @@ const LCD_TRANSFER_MODE: u8 = 3;
 const BYTES_PER_PIXEL: u8 = 4; // RGBA8888
 
 const WHITE: Color = Color::RGB(0xE6, 0xFF, 0xE6);
-const LIGHT_GRAY: Color = Color::RGB(0x40, 0x80, 0x00);
-const DARK_GRAY: Color = Color::RGB(0x70, 0xDB, 0x70);
+const DARK_GRAY: Color = Color::RGB(0x40, 0x80, 0x00);
+const LIGHT_GRAY: Color = Color::RGB(0x70, 0xDB, 0x70);
 const BLACK: Color = Color::RGB(0x00, 0x00, 0x00);
 const RED: Color = Color::RGB(0xFF, 0x00, 0x00);
 
@@ -463,7 +463,7 @@ impl Gpu {
 
         for pixel in 0..8 {
             let mask = 1 << (7 - pixel);
-            let color = ((byte1 & mask) >> (7 - pixel)) << 1 | ((byte2 & mask) >> (7 - pixel));
+            let color = ((byte2 & mask) >> (7 - pixel)) << 1 | ((byte1 & mask) >> (7 - pixel));
             self.tile_set[tile][row][pixel] = color;
         }
     }
