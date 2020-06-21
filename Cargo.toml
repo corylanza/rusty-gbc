@@ -7,6 +7,5 @@ members = [
 ]
 
 default-members = [
-    "gbc_sdl2",
-    "gbc_wasm"
+    "gbc_sdl2"
 ]
