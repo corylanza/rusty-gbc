@@ -80,16 +80,7 @@ fn game_loop(gbc: Rc<RefCell<Cpu>>, canvas: Rc<RefCell<dyn Display>>, time: u32)
     stdweb::web::set_timeout(
         move || {
             game_loop(gbc.clone(), canvas.clone(), time);
-            let mut total_cycles = 0usize;
-            loop {
-                let cycles = gbc.borrow_mut().step_cycles();
-                total_cycles += cycles as usize;
-                gbc.borrow_mut().mem.gpu.gpu_step(&mut *canvas.borrow_mut(), cycles);
-                gbc.borrow_mut().mem.mmu_step(cycles);
-                if total_cycles > 70_224 {
-                    break
-                }
-            }
+            gbc.borrow_mut().run_one_frame(&mut *canvas.borrow_mut());
         },
         time,
     );

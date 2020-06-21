@@ -12,6 +12,7 @@ use sdl2::event::Event;
 
 use std::fs::File;
 use std::io::prelude::*;
+//use std::time::Instant;
 
 mod display;
 use display::SdlDisplay;
@@ -131,17 +132,14 @@ fn main() -> Result<(), String> {
                 }
             }
             
-            let mut cycle_count: u16  = 0;
-
-            loop {
-                if cycle_count > 4000 {
-                    break
-                }
-                let cycles = gbc.step_cycles();
-                cycle_count += cycles as u16;
-                gbc.mem.gpu.gpu_step(&mut display, cycles);
-                gbc.mem.mmu_step(cycles);
-            }
+            gbc.run_one_frame(&mut display);
+            // To reintroduce fps count use below
+            // let elapsed = self.timer.elapsed().as_millis();
+            // if elapsed > 1000 {
+            //     self.timer = Instant::now();
+            //     println!("fps {}", self.framecount as f32 / (elapsed as f32 / 1000.0));
+            //     self.framecount = 0;
+            // }
         }
         Ok(())
     } else {

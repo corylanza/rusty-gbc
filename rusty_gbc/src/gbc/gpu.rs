@@ -1,11 +1,6 @@
-//use std::time::Instant;
-
 use crate::{Color, Display};
 use crate::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use super::{V_BLANK_INTERRUPT, STAT_INTERRUPT};
-
-// const SPRITE_X_LIM: u8 = SCREEN_WIDTH + 8;
-// const SPRITE_Y_LIM: u8 = SCREEN_HEIGHT + 16;
 
 const SPRITE_OBJ_TO_BG_PRIORITY: u8 = 0b10000000; // (0=OBJ Above BG, 1=OBJ Behind BG color 1-3) //(Used for both BG and Window. BG color 0 is always behind OBJ)
 const SPRITE_Y_FLIP: u8 = 0b01000000; // (0=Normal, 1=Vertically mirrored)
@@ -24,8 +19,6 @@ const DARK_GRAY: Color = Color::rgb(0x40, 0x80, 0x00);
 const LIGHT_GRAY: Color = Color::rgb(0x70, 0xDB, 0x70);
 const BLACK: Color = Color::rgb(0x00, 0x00, 0x00);
 const RED: Color = Color::rgb(0xFF, 0x00, 0x00);
-
-
 
 pub struct Gpu {
     vram: [u8; 0x8000],
@@ -64,9 +57,7 @@ pub struct Gpu {
     obp1: u8,
     cycle_count: usize,
     pub interrupts: u8,
-    updated: bool,
-    framecount: u32,
-    //timer: Instant
+    updated: bool
 }
 
 type Tile = [[u8; 8]; 8];
@@ -118,9 +109,7 @@ impl Gpu {
             obp1: 0,
             cycle_count: 0,
             interrupts: 0,
-            updated: true,
-            framecount: 0,
-            //timer: Instant::now()
+            updated: true
         })
     }
 
@@ -129,12 +118,6 @@ impl Gpu {
             return;
         }
         self.cycle_count += cycles as usize;
-        // let elapsed = self.timer.elapsed().as_millis();
-        // if elapsed > 1000 {
-        //     self.timer = Instant::now();
-        //     println!("fps {}", self.framecount as f32 / (elapsed as f32 / 1000.0));
-        //     self.framecount = 0;
-        // }
 
         if self.ly < SCREEN_HEIGHT {
             match self.cycle_count {
@@ -189,7 +172,6 @@ impl Gpu {
                 self.set_lcdc_mode(V_BLANK_MODE);
                 self.interrupts |= V_BLANK_INTERRUPT;
                 
-                self.framecount += 1;
                 self.window_internal_line_counter = None;
 
                 if self.updated {

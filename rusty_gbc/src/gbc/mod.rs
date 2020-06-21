@@ -10,6 +10,7 @@ pub use mmu::Mmu;
 pub use registers::Registers;
 use super::debugger::Debugger;
 use crate::gbc::gpu::Gpu;
+use crate::Display;
 
 const V_BLANK_INTERRUPT: u8 = 1;
 const STAT_INTERRUPT: u8 = 2;
@@ -37,6 +38,16 @@ impl Cpu {
             halted: false,
             log: false,
             debugger: None
+        }
+    }
+
+    pub fn run_one_frame(&mut self, display: &mut dyn Display) {
+        let mut cycle_count: u32  = 0;
+        while cycle_count < 70_224 {
+            let cycles = self.step_cycles();
+            cycle_count += cycles as u32;
+            self.mem.gpu.gpu_step(display, cycles);
+            self.mem.mmu_step(cycles);
         }
     }
 
@@ -105,7 +116,7 @@ impl Cpu {
         val
     }
 
-    pub fn step_cycles(&mut self) -> u8 {
+    fn step_cycles(&mut self) -> u8 {
         let interrupt_cycles = self.handle_interrupts();
         if interrupt_cycles > 0 {
             return interrupt_cycles;
@@ -117,7 +128,7 @@ impl Cpu {
     }
 
     /// returns number of cycles completed
-    pub fn next_intruction(&mut self) -> u8 {
+    fn next_intruction(&mut self) -> u8 {
         if self.debugger.is_some() {
             self.check_breakpoint();
         }
