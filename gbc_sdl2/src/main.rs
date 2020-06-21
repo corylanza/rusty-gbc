@@ -1,16 +1,20 @@
-use std::env;
-mod gbc;
-mod debugger;
-mod display;
+extern crate rusty_gbc;
 
-use gbc::Cpu;
-use debugger::Debugger;
-use display::{Display, SCREEN_HEIGHT, SCREEN_WIDTH};
-use gbc::gpu::Gpu;
+use rusty_gbc::gbc::Cpu;
+use rusty_gbc::debugger::Debugger;
+use rusty_gbc::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use rusty_gbc::gbc::gpu::Gpu;
+use std::env;
 
 extern crate sdl2;
 use sdl2::keyboard::Keycode;
 use sdl2::event::Event;
+
+use std::fs::File;
+use std::io::prelude::*;
+
+mod display;
+use display::SdlDisplay;
 
 fn main() -> Result<(), String> {
     let args: Vec<String> = env::args().collect();
@@ -33,7 +37,7 @@ fn main() -> Result<(), String> {
             .unwrap();
 
         let tc = canvas.texture_creator();
-        let mut display = Display::new(canvas, &tc, SCREEN_WIDTH as u32, SCREEN_HEIGHT as u32);
+        let mut display = SdlDisplay::new(canvas, &tc);
 
         // let tiles_window = video_subsystem.window("Tileset", 16 * 8 * 2, (384 / 16) * 8 * 2)
         //     .position_centered()
@@ -48,8 +52,12 @@ fn main() -> Result<(), String> {
         //     .build()
         //     .unwrap(); 
 
+        let mut file = File::open(&args[1]).unwrap();
+        let mut buffer = Vec::<u8>::new();
+        file.read_to_end(&mut buffer).unwrap();
+        
         let gpu = Gpu::new().unwrap();
-        let mut gbc = Cpu::new(&args[1], gpu);
+        let mut gbc = Cpu::new(buffer, gpu);
 
         if args.len() > 2 {
             let debugger = Debugger::new(&args[2]);
@@ -68,56 +76,53 @@ fn main() -> Result<(), String> {
                     Event::KeyDown { keycode: Some(Keycode::L), .. } => {
                         gbc.log = !gbc.log;
                     },
-                    // Event::KeyDown { keycode: Some(Keycode::T), .. } => {
-                    //     gbc.mem.gpu.render_tileset(&mut tile_canvas);
-                    // },
                     Event::KeyDown { keycode: Some(Keycode::S), .. } => {
-                        gbc.mem.input.key_pressed(gbc::input::Keycode::A);
+                        gbc.mem.input.key_pressed(rusty_gbc::gbc::input::Keycode::A);
                     },
                     Event::KeyUp { keycode: Some(Keycode::S), .. } => {
-                        gbc.mem.input.key_released(gbc::input::Keycode::A);
+                        gbc.mem.input.key_released(rusty_gbc::gbc::input::Keycode::A);
                     },
                     Event::KeyDown { keycode: Some(Keycode::A), .. } => {
-                        gbc.mem.input.key_pressed(gbc::input::Keycode::B);
+                        gbc.mem.input.key_pressed(rusty_gbc::gbc::input::Keycode::B);
                     },
                     Event::KeyUp { keycode: Some(Keycode::A), .. } => {
-                        gbc.mem.input.key_released(gbc::input::Keycode::B);
+                        gbc.mem.input.key_released(rusty_gbc::gbc::input::Keycode::B);
                     },
                     Event::KeyDown { keycode: Some(Keycode::Return), .. } => {
-                        gbc.mem.input.key_pressed(gbc::input::Keycode::Start);
+                        gbc.mem.input.key_pressed(rusty_gbc::gbc::input::Keycode::Start);
                     },
                     Event::KeyUp { keycode: Some(Keycode::Return), .. } => {
-                        gbc.mem.input.key_released(gbc::input::Keycode::Start);
+                        gbc.mem.input.key_released(rusty_gbc::gbc::input::Keycode::Start);
                     },
                     Event::KeyDown { keycode: Some(Keycode::Space), .. } => {
-                        gbc.mem.input.key_pressed(gbc::input::Keycode::Select);
+                        gbc.mem.input.key_pressed(rusty_gbc::gbc::input::Keycode::Select);
                     },
                     Event::KeyUp { keycode: Some(Keycode::Space), .. } => {
-                        gbc.mem.input.key_released(gbc::input::Keycode::Select);
+                        gbc.mem.input.key_released(rusty_gbc::gbc::input::Keycode::Select);
                     },
                     Event::KeyDown { keycode: Some(Keycode::Left), .. } => {
-                        gbc.mem.input.key_pressed(gbc::input::Keycode::Left);
+                        gbc.mem.input.key_pressed(rusty_gbc::gbc::input::Keycode::Left);
                     },
                     Event::KeyUp { keycode: Some(Keycode::Left), .. } => {
-                        gbc.mem.input.key_released(gbc::input::Keycode::Left);
+                        gbc.mem.input.key_released(rusty_gbc::gbc::input::Keycode::Left);
                     },
                     Event::KeyDown { keycode: Some(Keycode::Right), .. } => {
-                        gbc.mem.input.key_pressed(gbc::input::Keycode::Right);
+                        gbc.mem.input.key_pressed(rusty_gbc::gbc::input::Keycode::Right);
                     },
                     Event::KeyUp { keycode: Some(Keycode::Right), .. } => {
-                        gbc.mem.input.key_released(gbc::input::Keycode::Right);
+                        gbc.mem.input.key_released(rusty_gbc::gbc::input::Keycode::Right);
                     },
                     Event::KeyDown { keycode: Some(Keycode::Down), .. } => {
-                        gbc.mem.input.key_pressed(gbc::input::Keycode::Down);
+                        gbc.mem.input.key_pressed(rusty_gbc::gbc::input::Keycode::Down);
                     },
                     Event::KeyUp { keycode: Some(Keycode::Down), .. } => {
-                        gbc.mem.input.key_released(gbc::input::Keycode::Down);
+                        gbc.mem.input.key_released(rusty_gbc::gbc::input::Keycode::Down);
                     },
                     Event::KeyDown { keycode: Some(Keycode::Up), .. } => {
-                        gbc.mem.input.key_pressed(gbc::input::Keycode::Up);
+                        gbc.mem.input.key_pressed(rusty_gbc::gbc::input::Keycode::Up);
                     },
                     Event::KeyUp { keycode: Some(Keycode::Up), .. } => {
-                        gbc.mem.input.key_released(gbc::input::Keycode::Up);
+                        gbc.mem.input.key_released(rusty_gbc::gbc::input::Keycode::Up);
                     },
                     Event::MouseButtonDown { .. } => {
                         println!("PC: {:04X} op {:02X}", gbc.regs.pc, gbc.mem.read(gbc.regs.pc));

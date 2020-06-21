@@ -1,0 +1,15 @@
+[package]
+name = "gbc_wasm"
+version = "0.1.0"
+authors = ["Cory Lanza <corylanza@gmail.com>"]
+edition = "2018"
+target = "nightly-wasm32-unknown-unknown"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rusty_gbc = { path = "../rusty_gbc" }
+hex = "0.4.2"
+text_io = "0.1.8"
+rand = "0.5"
+stdweb = "0.4.20"

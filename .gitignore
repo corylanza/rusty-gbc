@@ -13,7 +13,7 @@ Cargo.lock
 #Added by cargo
 
 /.vscode
-/target
+/**/target
 /roms
 /logs
 SDL2.dll

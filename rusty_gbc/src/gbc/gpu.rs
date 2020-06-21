@@ -1,7 +1,6 @@
-use sdl2::pixels::Color;
-use std::time::Instant;
+//use std::time::Instant;
 
-use crate::Display;
+use crate::{Color, Display};
 use crate::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use super::{V_BLANK_INTERRUPT, STAT_INTERRUPT};
 
@@ -20,13 +19,13 @@ const V_BLANK_MODE: u8 = 1;
 const OAM_SEARCH_MODE: u8 = 2;
 const LCD_TRANSFER_MODE: u8 = 3;
 
-const BYTES_PER_PIXEL: u8 = 4; // RGBA8888
+const WHITE: Color = Color::rgb(0xE6, 0xFF, 0xE6);
+const DARK_GRAY: Color = Color::rgb(0x40, 0x80, 0x00);
+const LIGHT_GRAY: Color = Color::rgb(0x70, 0xDB, 0x70);
+const BLACK: Color = Color::rgb(0x00, 0x00, 0x00);
+const RED: Color = Color::rgb(0xFF, 0x00, 0x00);
 
-const WHITE: Color = Color::RGB(0xE6, 0xFF, 0xE6);
-const DARK_GRAY: Color = Color::RGB(0x40, 0x80, 0x00);
-const LIGHT_GRAY: Color = Color::RGB(0x70, 0xDB, 0x70);
-const BLACK: Color = Color::RGB(0x00, 0x00, 0x00);
-const RED: Color = Color::RGB(0xFF, 0x00, 0x00);
+
 
 pub struct Gpu {
     vram: [u8; 0x8000],
@@ -67,7 +66,7 @@ pub struct Gpu {
     pub interrupts: u8,
     updated: bool,
     framecount: u32,
-    timer: Instant
+    //timer: Instant
 }
 
 type Tile = [[u8; 8]; 8];
@@ -121,21 +120,21 @@ impl Gpu {
             interrupts: 0,
             updated: true,
             framecount: 0,
-            timer: Instant::now()
+            //timer: Instant::now()
         })
     }
 
-    pub fn gpu_step(&mut self, display: &mut Display, cycles: u8) {
+    pub fn gpu_step(&mut self, display: &mut dyn Display, cycles: u8) {
         if !self.lcd_enable {
             return;
         }
         self.cycle_count += cycles as usize;
-        let elapsed = self.timer.elapsed().as_millis();
-        if elapsed > 1000 {
-            self.timer = Instant::now();
-            println!("fps {}", self.framecount as f32 / (elapsed as f32 / 1000.0));
-            self.framecount = 0;
-        }
+        // let elapsed = self.timer.elapsed().as_millis();
+        // if elapsed > 1000 {
+        //     self.timer = Instant::now();
+        //     println!("fps {}", self.framecount as f32 / (elapsed as f32 / 1000.0));
+        //     self.framecount = 0;
+        // }
 
         if self.ly < SCREEN_HEIGHT {
             match self.cycle_count {
@@ -357,19 +356,14 @@ impl Gpu {
         self.get_bg_color(bg_or_win_color)
     }
 
-    fn draw_scanline(&mut self, display: &mut Display) {
+    fn draw_scanline(&mut self, display: &mut dyn Display) {
         let pixel_y = self.ly;
-        display.texture.with_lock(None, |buffer: &mut [u8], pitch: usize| {
-            for pixel_x in 0 .. SCREEN_WIDTH {
-                let buf_idx = (pixel_y as usize * pitch) + (pixel_x as usize * BYTES_PER_PIXEL as usize);
-                let color = self.get_color(pixel_x, pixel_y);
-                buffer[buf_idx] = color.r;
-                buffer[buf_idx + 1] = color.g;
-                buffer[buf_idx + 2] = color.b;
-                buffer[buf_idx + 3] = color.a;
-            }
-        }).unwrap();
-        
+        let mut buffer: [Color; SCREEN_WIDTH as usize] = [Default::default(); SCREEN_WIDTH as usize];
+        for pixel_x in 0 .. SCREEN_WIDTH {
+            let color = self.get_color(pixel_x, pixel_y);
+            buffer[pixel_x as usize] = color; 
+        }
+        display.update_line_from_buffer(buffer, pixel_y);
     }
 
     // pub fn render_background(&mut self) {

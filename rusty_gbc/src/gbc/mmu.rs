@@ -43,8 +43,8 @@ pub struct Mmu {
 }
 
 impl Mmu {
-    pub fn new(filepath: &str, gpu: Gpu) -> Mmu {
-        let mbc = MemoryBank::new(filepath);
+    pub fn new(rom_bytes: Vec<u8>, gpu: Gpu) -> Mmu {
+        let mbc = MemoryBank::new(rom_bytes);
         Mmu {
             boot_rom: super::boot::load_rom(),
             mbc: mbc,

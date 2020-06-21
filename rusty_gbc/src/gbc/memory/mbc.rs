@@ -1,5 +1,3 @@
-use std::fs::File;
-use std::io::prelude::*;
 use std::str;
 
 const MEMORY_BANK_TYPE_ADDRESS: u16 = 0x0147;
@@ -15,19 +13,15 @@ pub trait MemoryBank {
 }
 
 impl dyn MemoryBank {
-    pub fn new(filepath: &str) -> Box<dyn MemoryBank> {
-        let mut file = File::open(&filepath).unwrap();
-        let mut buffer = Vec::<u8>::new();
-        file.read_to_end(&mut buffer).unwrap();
-
-        let mbc_type = buffer[MEMORY_BANK_TYPE_ADDRESS as usize];
-        let rom_size = buffer[ROM_SIZE_ADDRESS as usize];
+    pub fn new(rom_bytes: Vec<u8>) -> Box<dyn MemoryBank> {
+        let mbc_type = rom_bytes[MEMORY_BANK_TYPE_ADDRESS as usize];
+        let rom_size = rom_bytes[ROM_SIZE_ADDRESS as usize];
         let rom_bank_count = match rom_size {
             0 => 0,
             1 ..= 8 => 2u8.pow(rom_size as u32 + 1),
             _ => panic!("Unsupported ROM size {:02X}", rom_size)
         };
-        let ram_size = buffer[RAM_SIZE_ADDRESS as usize];
+        let ram_size = rom_bytes[RAM_SIZE_ADDRESS as usize];
         let (ram_bank_count, ram_bank_size) = match ram_size {
             0 => (0, 0),
             1 => (1, 0x800),
@@ -38,8 +32,8 @@ impl dyn MemoryBank {
             _ => panic!("Unsupported RAM size {:02X}", ram_size)
         };
         match mbc_type {
-            0 => NoMBC::load_rom(&buffer),
-            1..=3 => Box::new(MBC1::load_rom(&buffer, rom_bank_count, ram_bank_count, ram_bank_size)),
+            0 => NoMBC::load_rom(&rom_bytes),
+            1..=3 => Box::new(MBC1::load_rom(&rom_bytes, rom_bank_count, ram_bank_count, ram_bank_size)),
             _ => panic!("not implemented {}", mbc_type)
         }
     }
