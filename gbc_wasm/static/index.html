@@ -25,6 +25,17 @@
                 border-radius: 50%;
             }
 
+            #canvas {
+                width: 480px;
+                height: 432px;
+                image-rendering: optimizeSpeed;
+                image-rendering: -moz-crisp-edges;
+                image-rendering: -webkit-optimize-contrast;
+                image-rendering: -o-crisp-edges;
+                image-rendering: pixelated;
+                -ms-interpolation-mode: nearest-neighbor;
+            }
+
             @media only screen and (max-width: 768px) {
                 #canvas {
                     width: 100vw;
@@ -55,7 +66,7 @@
                     <div class="col-12 col-lg-8 px-0 px-lg-3">
                         <div class="jumbotron text-center purple p-0 p-lg-4 mb-0 mb-lg-3">
                             <div class="bg-dark p-0 p-lg-5">
-                                <canvas id="canvas" width="480" height="432" class="bg-light"></canvas>
+                                <canvas id="canvas" width="160" height="144" class="bg-light"></canvas>
                             </div>
                         </div>
                         <div class="row no-gutters purple d-md-none pt-3">

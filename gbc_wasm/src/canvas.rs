@@ -1,7 +1,7 @@
 use stdweb::traits::*;
 use stdweb::unstable::TryInto;
 use stdweb::web::html_element::CanvasElement;
-use stdweb::web::{document, CanvasRenderingContext2d};
+use stdweb::web::{document, CanvasRenderingContext2d, ImageData};
 use rusty_gbc::{Display, Color, SCREEN_WIDTH, SCREEN_HEIGHT};
 use stdweb::js;
 
@@ -9,6 +9,7 @@ use stdweb::js;
 pub struct Canvas {
     pub canvas: CanvasElement,
     pub ctx: CanvasRenderingContext2d,
+    image_data: ImageData,
     scaled_width: u32,
     scaled_height: u32
 }
@@ -21,15 +22,20 @@ impl Canvas {
             .unwrap()
             .try_into()
             .unwrap();
+        
+        let width = canvas.width();
+        let height = canvas.height();
 
         let ctx: CanvasRenderingContext2d = canvas.get_context().unwrap();
+        let image_data = ctx.create_image_data(width as f64, height as f64).unwrap();
 
-        let scaled_width = canvas.width() / SCREEN_WIDTH as u32;
-        let scaled_height = canvas.height() / SCREEN_HEIGHT as u32;
+        let scaled_width = width / SCREEN_WIDTH as u32;
+        let scaled_height = height / SCREEN_HEIGHT as u32;
 
         Canvas {
             canvas,
             ctx,
+            image_data,
             scaled_width,
             scaled_height
         }
