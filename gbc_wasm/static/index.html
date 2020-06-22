@@ -215,6 +215,10 @@
                 document.dispatchEvent(new KeyboardEvent('keydown', {'key' : key}));
             }
 
+            function create_frame_image_data(data) {
+                return new ImageData(Uint8ClampedArray.from(data), 160, 144);
+            }
+
             var fileReader = new FileReader();
             fileReader.onloadend = e => Rust.gbc_wasm
                 .then(reader => {

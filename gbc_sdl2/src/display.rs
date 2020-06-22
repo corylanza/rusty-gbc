@@ -1,8 +1,6 @@
-use super::rusty_gbc::{Display, Color, SCREEN_WIDTH, SCREEN_HEIGHT};
+use super::rusty_gbc::{Display, Color, SCREEN_WIDTH, SCREEN_HEIGHT, BYTES_PER_PIXEL};
 use sdl2::render::{Texture, TextureCreator, WindowCanvas};
 use sdl2::video::WindowContext;
-
-const BYTES_PER_PIXEL: u8 = 4; // RGBA8888
 
 pub struct SdlDisplay<'a> {
     pub canvas: WindowCanvas,

@@ -3,6 +3,7 @@ pub mod debugger;
 
 pub const SCREEN_WIDTH: u8 = 160;
 pub const SCREEN_HEIGHT: u8 = 144;
+pub const BYTES_PER_PIXEL: u8 = 4; // RGBA8888
 
 #[derive(Default, Copy, Clone)]
 pub struct Color {
