@@ -4,7 +4,7 @@
         <title>Rusty GBC</title>
         <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
         <meta content="utf-8" http-equiv="encoding">
-        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no, user-scalable=no">
 
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
             integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
@@ -25,170 +25,147 @@
                 border-radius: 50%;
             }
 
+            #canvas {
+                width: 480px;
+                height: 432px;
+                image-rendering: optimizeSpeed;
+                image-rendering: -moz-crisp-edges;
+                image-rendering: -webkit-optimize-contrast;
+                image-rendering: -o-crisp-edges;
+                image-rendering: pixelated;
+                -ms-interpolation-mode: nearest-neighbor;
+            }
+
             @media only screen and (max-width: 768px) {
                 #canvas {
                     width: 100vw;
+                    height: 90vw;
                 }
             }
             
         </style>
     </head>
 
-    <body>
-        <div class="bg-color-dark">
-            <nav class="navbar navbar-expand-lg navbar-dark bg-color-primary mb-lg-5">
-                <a class="navbar-brand" href="#">Rust GBC</a>
-                <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
-                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav">
-                        <li class="nav-item active">
-                            <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
-                        </li>
-                    </ul>
-                </div>
-            </nav>
-            <div class="container">
-                <div class="row">
-                    <div class="col-12 col-lg-8 px-0 px-lg-3">
-                        <div class="jumbotron text-center purple p-0 p-lg-4 mb-0 mb-lg-3">
-                            <div class="bg-dark p-0 p-lg-5">
-                                <canvas id="canvas" width="480" height="432" class="bg-light"></canvas>
-                            </div>
-                        </div>
-                        <div class="row no-gutters purple d-md-none pt-3">
-                            <div class="col-2 offset-1 gray">
-                                <button 
-                                    type="button" 
-                                    class="btn btn-secondary mt-3 float-right"
-                                    ontouchstart="raiseKeyDownEvent('ArrowLeft')" 
-                                    ontouchend="raiseKeyUpEvent('ArrowLeft')"
-                                >&#9668;</button>
-                            </div>
-                            <div class="col-2 gray text-center">
-                                <div class="btn-group-vertical pb-4">
-                                    <button 
-                                        type="button" 
-                                        class="btn btn-secondary mb-2" 
-                                        ontouchstart="raiseKeyDownEvent('ArrowUp')" 
-                                        ontouchend="raiseKeyUpEvent('ArrowUp')"
-                                    >&#9650;</button>
-                                    <button 
-                                        type="button" 
-                                        class="btn btn-secondary"
-                                        ontouchstart="raiseKeyDownEvent('ArrowDown')" 
-                                        ontouchend="raiseKeyUpEvent('ArrowDown')"
-                                    >&#9660;</button>
-                                </div>
-                            </div>
-                            <div class="col-2 gray">
-                                <button 
-                                    type="button"
-                                    class="btn btn-secondary mt-3"
-                                    ontouchstart="raiseKeyDownEvent('ArrowRight')" 
-                                    ontouchend="raiseKeyUpEvent('ArrowRight')"
-                                >&#9658;</button>
-                            </div>
-                            <div class="col-1 offset-1">
-                                <button 
-                                    type="button" 
-                                    class="btn btn-secondary circle-btn mt-3"
-                                    ontouchstart="raiseKeyDownEvent('s')" 
-                                    ontouchend="raiseKeyUpEvent('s')"
-                                >A</button>
-                            </div>
-                            <div class="col-1 offset-1">
-                                <button 
-                                    type="button" 
-                                    class="btn btn-secondary circle-btn mt-3"
-                                    ontouchstart="raiseKeyDownEvent('a')" 
-                                    ontouchend="raiseKeyUpEvent('a')"
-                                >B</button>
-                            </div>
-                            <div class="col-2 offset-3 pb-4">
-                                <button 
-                                    type="button" 
-                                    class="btn btn-secondary"
-                                    ontouchstart="raiseKeyDownEvent('Enter')" 
-                                    ontouchend="raiseKeyUpEvent('Enter')"
-                                >Start</button>
-                            </div>
-                            <div class="col-3 offset-2">
-                                <button 
-                                    type="button" 
-                                    class="btn btn-secondary"
-                                    ontouchstart="raiseKeyDownEvent('Space')" 
-                                    ontouchend="raiseKeyUpEvent('Space')"
-                                >Select</button>
-                            </div>
-                        </div>
-                        <div class="card bg-color-primary mb-4">
-                            <div class="card-body">
-                                <h5 class="card-title">Debugger</h5>
-                                <label class="btn btn-primary">
-                                    Load ROM <input type="file" id="file-input" hidden>
-                                </label>
-                            </div>
+    <body class="bg-color-dark">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-color-primary mb-lg-5">
+            <a class="navbar-brand" href="#">Rust GBC</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+                aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav">
+                    <li class="nav-item active">
+                        <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+        <div class="container">
+            <div class="row">
+                <div class="col-12 col-lg-8 px-0 px-lg-3">
+                    <div class="jumbotron text-center purple p-0 p-lg-4 mb-0 mb-lg-3">
+                        <div class="bg-dark p-0 p-lg-5">
+                            <canvas id="canvas" width="160" height="144" class="bg-light"></canvas>
                         </div>
                     </div>
-                    <div class="col-12 col-lg-4">
-                        <div class="card bg-color-primary mb-4">
-                            <div class="card-body">
-                                <h5 class="card-title">Registers</h5>
-                                <table class="table table-dark">
-                                    <tbody>
-                                        <tr>
-                                            <th scope="row">AF</th>
-                                            <td>Not loaded</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">BC</th>
-                                            <td>Not loaded</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">DE</th>
-                                            <td>Not loaded</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">HL</th>
-                                            <td>Not loaded</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">SP</th>
-                                            <td>Not loaded</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">PC</th>
-                                            <td>Not loaded</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                    <div class="row no-gutters purple d-md-none pt-3">
+                        <div class="col-2 offset-1 gray">
+                            <button 
+                                type="button" 
+                                class="btn btn-secondary mt-3 float-right"
+                                ontouchstart="raiseKeyDownEvent('ArrowLeft')" 
+                                ontouchend="raiseKeyUpEvent('ArrowLeft')"
+                            >&#9668;</button>
+                        </div>
+                        <div class="col-2 gray text-center">
+                            <div class="btn-group-vertical pb-4">
+                                <button 
+                                    type="button" 
+                                    class="btn btn-secondary mb-2" 
+                                    ontouchstart="raiseKeyDownEvent('ArrowUp')" 
+                                    ontouchend="raiseKeyUpEvent('ArrowUp')"
+                                >&#9650;</button>
+                                <button 
+                                    type="button" 
+                                    class="btn btn-secondary"
+                                    ontouchstart="raiseKeyDownEvent('ArrowDown')" 
+                                    ontouchend="raiseKeyUpEvent('ArrowDown')"
+                                >&#9660;</button>
                             </div>
                         </div>
-                        <div class="card bg-color-primary mb-4">
-                            <div class="card-body">
-                                <h5 class="card-title">ROM Metadata</h5>
-                                <table class="table table-dark">
-                                    <tbody>
-                                        <tr>
-                                            <th scope="row">Title</th>
-                                            <td id="game-title">Not loaded</td>
-                                        </tr>
-                                        <tr>
-                                            <th scope="row">MBC</th>
-                                            <td>Not loaded</td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="col-2 gray">
+                            <button 
+                                type="button"
+                                class="btn btn-secondary mt-3"
+                                ontouchstart="raiseKeyDownEvent('ArrowRight')" 
+                                ontouchend="raiseKeyUpEvent('ArrowRight')"
+                            >&#9658;</button>
                         </div>
-                        <div class="card bg-color-primary mb-4">
-                            <div class="card-body">
-                                <h5 class="card-title">About</h5>
-                                <p class="card-text">In progress</p>
-                            </div>
+                        <div class="col-1 offset-1">
+                            <button 
+                                type="button" 
+                                class="btn btn-secondary circle-btn mt-3"
+                                ontouchstart="raiseKeyDownEvent('s')" 
+                                ontouchend="raiseKeyUpEvent('s')"
+                            >A</button>
+                        </div>
+                        <div class="col-1 offset-1">
+                            <button 
+                                type="button" 
+                                class="btn btn-secondary circle-btn mt-3"
+                                ontouchstart="raiseKeyDownEvent('a')" 
+                                ontouchend="raiseKeyUpEvent('a')"
+                            >B</button>
+                        </div>
+                        <div class="col-2 offset-3 pb-4">
+                            <button 
+                                type="button" 
+                                class="btn btn-secondary"
+                                ontouchstart="raiseKeyDownEvent('Enter')" 
+                                ontouchend="raiseKeyUpEvent('Enter')"
+                            >Start</button>
+                        </div>
+                        <div class="col-3 offset-2">
+                            <button 
+                                type="button" 
+                                class="btn btn-secondary"
+                                ontouchstart="raiseKeyDownEvent('Space')" 
+                                ontouchend="raiseKeyUpEvent('Space')"
+                            >Select</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12 col-lg-4 pt-4 pt-lg-0">
+                    <div class="card bg-color-primary mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Info</h5>
+                            <table class="table table-dark">
+                                <tbody>
+                                    <tr>
+                                        <th scope="row">Title</th>
+                                        <td id="game-title">Not loaded</td>
+                                    </tr>
+                                    <tr>
+                                        <th scope="row">FPS</th>
+                                        <td id="fps">Not loaded</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card bg-color-primary mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">About</h5>
+                            <p class="card-text">In progress</p>
+                        </div>
+                    </div>
+                    <div class="card bg-color-primary mb-4">
+                        <div class="card-body">
+                            <h5 class="card-title">Debugger</h5>
+                            <label class="btn btn-primary">
+                                Load ROM <input type="file" id="file-input" hidden>
+                            </label>
                         </div>
                     </div>
                 </div>
@@ -202,6 +179,16 @@
 
             function raiseKeyDownEvent(key) {
                 document.dispatchEvent(new KeyboardEvent('keydown', {'key' : key}));
+            }
+
+            var timer = new Date();
+
+            function create_frame_image_data(data) {
+                var timer_new = new Date();
+                var fps = Math.round(1000 / (timer_new - timer));
+                document.getElementById("fps").innerText = fps;
+                timer = timer_new;
+                return new ImageData(Uint8ClampedArray.from(data), 160, 144);
             }
 
             var fileReader = new FileReader();
