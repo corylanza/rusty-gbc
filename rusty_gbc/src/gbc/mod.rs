@@ -56,7 +56,7 @@ impl Cpu {
     }
 
     fn handle_interrupts(&mut self) -> u8 {
-        // TODO interrupts take 20 cycles to handle (+ 4 if in halt mode)
+        //interrupts take 20 cycles to handle (+ 4 if in halt mode)
         let int_enable = self.mem.read(mmu::INTERUPTS_ENABLE);
         let int_request = self.mem.read(mmu::INTERUPT_REQUEST);
         for flag in vec![V_BLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT, JOYPAD_INTERRUPT] {

@@ -19,7 +19,6 @@ pub struct Registers {
 #[allow(dead_code)]
 impl Registers {
     pub fn new() -> Registers {
-        // TODO initialize this with proper boot rom sequence
         Registers {
             a: 0,
             f: 0,

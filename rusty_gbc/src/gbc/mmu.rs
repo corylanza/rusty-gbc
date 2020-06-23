@@ -14,7 +14,9 @@ const VRAM_START: u16 = 0x8000;
 const VRAM_END: u16 = 0x9FFF;
 const ERAM_START: u16 = 0xA000;
 const ERAM_END: u16 = 0xBFFF;
-const WRAM_START: u16 = 0xC000;
+const WRAM_BANK_0_START: u16 = 0xC000;
+const WRAM_BANK_0_END: u16 = 0xCFFF;
+const WRAM_BANK_1_START: u16 = 0xC000;
 const WRAM_END: u16 = 0xDFFF;
 const ECHO_START: u16 = 0xE000;
 const ECHO_END: u16 = 0xFDFF;
@@ -33,30 +35,44 @@ pub struct Mmu {
     pub gpu: Gpu,
     dma: Option<Dma>,
     mbc: Box<dyn MemoryBank>,
-    wram: Ram,
+    wram: Vec<Ram>,
     pub input: Input,
     timer: Timer,
     io: Ram,
     hram: Ram,
     interupt_switch: u8,
-    pub booting: bool
+    wram_select: u8,
+    pub booting: bool,
+    pub color_mode: bool,
 }
 
 impl Mmu {
     pub fn new(rom_bytes: Vec<u8>, gpu: Gpu) -> Mmu {
+        let color_mode = rom_bytes[0x143] & 0x80 == 0x80 || rom_bytes[0x143] & 0xC0 == 0xC0;
+        if color_mode {
+            println!("Color")
+        } else {
+            println!("{:02X}", rom_bytes[0x143])
+        }
         let mbc = MemoryBank::new(rom_bytes);
+        let mut wram = Vec::new();
+        for _ in 0 .. if color_mode { 2 } else { 8 } {   
+            wram.push(Ram::new(0x2000));
+        }
         Mmu {
             boot_rom: super::boot::load_rom(),
-            mbc: mbc,
-            gpu: gpu,
+            mbc,
+            gpu,
             dma: None,
-            wram: Ram::new(0x2000),
+            wram: wram,
             input: Input::new(),
             timer: Timer::new(),
             io: Ram::new(0x80),
             hram: Ram::new(0x7F),
             interupt_switch: 0,
-            booting: true
+            wram_select: 0,
+            booting: true,
+            color_mode
         }
     }
 
@@ -81,8 +97,10 @@ impl Mmu {
             ROM_START ..= ROM_END => self.mbc.read_rom(address),
             VRAM_START ..= VRAM_END => self.gpu.read_from_vram(address - VRAM_START),
             ERAM_START ..= ERAM_END => self.mbc.read_ram(address - ERAM_START),
-            WRAM_START ..= WRAM_END => self.wram.read(address - WRAM_START),
-            ECHO_START ..= ECHO_END => self.wram.read(address - ECHO_START),
+            WRAM_BANK_0_START ..= WRAM_BANK_0_END => self.wram[0].read(address - WRAM_BANK_0_START),
+            WRAM_BANK_1_START ..= WRAM_END if self.color_mode => self.wram[self.wram_select as usize].read(address - WRAM_BANK_1_START),
+            WRAM_BANK_1_START ..= WRAM_END => self.wram[1].read(address - WRAM_BANK_1_START),
+            ECHO_START ..= ECHO_END => self.wram[((address - ECHO_START) / 0x2000) as usize].read(address - ECHO_START),
             OAM_START ..= OAM_END => self.gpu.read_from_oam(address - OAM_START),
             0xFEA0 ..= 0xFEFF => 0xFF, // Unusable returns this
             IO_START => self.input.read_joypad(),
@@ -105,6 +123,7 @@ impl Mmu {
             0xFF49 => self.gpu.get_obp1(),
             0xFF4A => self.gpu.get_wy(),
             0xFF4B => self.gpu.get_wx(),
+            0xFF70 => self.wram_select | 0b11111000, // TODO verify
             IO_START ..= IO_END => self.io.read(address - IO_START),
             HRAM_START ..= HRAM_END => self.hram.read(address - HRAM_START),
             INTERUPTS_ENABLE => self.interupt_switch
@@ -134,8 +153,10 @@ impl Mmu {
             ROM_START ..= ROM_END => self.mbc.write_rom(address, value),
             VRAM_START ..= VRAM_END => self.gpu.write_to_vram(address - VRAM_START, value),
             ERAM_START ..= ERAM_END => self.mbc.write_ram(address - ERAM_START, value),
-            WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),
-            ECHO_START ..= ECHO_END => self.wram.write(address - ECHO_START, value),
+            WRAM_BANK_0_START ..= WRAM_BANK_0_END => self.wram[0].write(address - WRAM_BANK_0_START, value),
+            WRAM_BANK_1_START ..= WRAM_END if self.color_mode => self.wram[self.wram_select as usize].write(address - WRAM_BANK_1_START, value),
+            WRAM_BANK_1_START ..= WRAM_END => self.wram[1].write(address - WRAM_BANK_1_START, value),
+            ECHO_START ..= ECHO_END => self.wram[((address - ECHO_START) / 0x2000) as usize].write(address - ECHO_START, value),
             OAM_START ..= OAM_END => self.gpu.write_to_oam(address - OAM_START, value),
             0xFEA0 ..= 0xFEFF => { /* Unusable */} ,
             0xFF00 => self.input.write_joypad(value),
@@ -157,15 +178,16 @@ impl Mmu {
             0xFF49 => self.gpu.set_obp1(value),
             0xFF4A => self.gpu.set_wy(value),
             0xFF4B => self.gpu.set_wx(value),
-            // 0xFF51 cgb hdma1
-            // 0xFF52 cgb hdma2
-            // 0xFF53 cgb hdma3
-            // 0xFF54 cgb hdma4
-            // 0xFF55 cgb hdma5
+            // 0xFF51 => ,//cgb hdma1
+            // 0xFF52 => ,//cgb hdma2
+            // 0xFF53 => ,//cgb hdma3
+            // 0xFF54 => ,//cgb hdma4
+            // 0xFF55 => ,//cgb hdma5
             // 0xFF68 cgb bgpi
             // 0xFF69 cgb pgpd
             // 0xFF6A cgb spi
             // 0xFF6a cgb spd
+            0xFF70 => self.wram_select = value & 0b00000111, // TODO verify
             IO_START ..= IO_END => self.io.write(address - IO_START, value),
             HRAM_START ..= HRAM_END => self.hram.write(address - HRAM_START, value),
             INTERUPTS_ENABLE => self.interupt_switch = value,
