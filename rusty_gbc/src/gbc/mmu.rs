@@ -121,6 +121,10 @@ impl Mmu {
             0xFF47 => self.gpu.get_bgp(),
             0xFF48 => self.gpu.get_obp0(),
             0xFF49 => self.gpu.get_obp1(),
+            // 0xFF68 => self.gpu.get_color_bg_palette_idx(),//cgb bgpi
+            // 0xFF69 => self.gpu.get_color_bg_palette(),//cgb pgpd
+            // 0xFF6A => self.gpu.get_color_sprite_palette_idx(), //cgb spi
+            // 0xFF6a => self.gpu.get_color_sprite_palette(), //cgb spd
             0xFF4A => self.gpu.get_wy(),
             0xFF4B => self.gpu.get_wx(),
             0xFF70 => self.wram_select | 0b11111000, // TODO verify
@@ -183,10 +187,10 @@ impl Mmu {
             // 0xFF53 => ,//cgb hdma3
             // 0xFF54 => ,//cgb hdma4
             // 0xFF55 => ,//cgb hdma5
-            // 0xFF68 cgb bgpi
-            // 0xFF69 cgb pgpd
-            // 0xFF6A cgb spi
-            // 0xFF6a cgb spd
+            // 0xFF68 => self.gpu.set_color_bg_palette_idx(value),//cgb bgpi
+            // 0xFF69 => self.gpu.set_color_bg_palette(value),//cgb pgpd
+            // 0xFF6A => self.gpu.set_color_sprite_palette_idx(value), //cgb spi
+            // 0xFF6a => self.gpu.set_color_sprite_palette(value), //cgb spd
             0xFF70 => self.wram_select = value & 0b00000111, // TODO verify
             IO_START ..= IO_END => self.io.write(address - IO_START, value),
             HRAM_START ..= HRAM_END => self.hram.write(address - HRAM_START, value),
@@ -247,4 +251,11 @@ impl Dma {
             started: false
         }
     }
+}
+
+struct Hdma {
+    value: u8,
+    source: u16,
+    destination: u16,
+    length: u8
 }

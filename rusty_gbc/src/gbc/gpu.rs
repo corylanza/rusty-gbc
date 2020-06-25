@@ -55,6 +55,9 @@ pub struct Gpu {
     bgp: u8,
     obp0: u8,
     obp1: u8,
+    color_bg_palette_index: u8,
+    color_bg_palette_auto_increment: bool,
+    color_bg_palettes: [Color; 0x3F],
     cycle_count: usize,
     pub interrupts: u8,
     updated: bool
@@ -107,6 +110,9 @@ impl Gpu {
             bgp: 0,
             obp0: 0,
             obp1: 0,
+            color_bg_palette_index: 0,
+            color_bg_palette_auto_increment: false,
+            color_bg_palettes: [Color::rgb(0, 0, 0); 0x3F],
             cycle_count: 0,
             interrupts: 0,
             updated: true
