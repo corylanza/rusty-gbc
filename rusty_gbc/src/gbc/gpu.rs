@@ -55,9 +55,13 @@ pub struct Gpu {
     bgp: u8,
     obp0: u8,
     obp1: u8,
+    pub color_mode: bool,
     color_bg_palette_index: u8,
     color_bg_palette_auto_increment: bool,
-    color_bg_palettes: [Color; 0x3F],
+    color_bg_palettes: [u8; 0x3F],
+    color_obj_palette_index: u8,
+    color_obj_palette_auto_increment: bool,
+    color_obj_palettes: [u8; 0x3F],
     cycle_count: usize,
     pub interrupts: u8,
     updated: bool
@@ -77,7 +81,7 @@ fn empty_tile() -> Tile {
 }
 
 impl Gpu {
-    pub fn new() -> Result<Self, String> {
+    pub fn new(color_mode: bool) -> Result<Self, String> {
         Ok(Gpu {
             oam: [0; 0xA0],
             vram: [0; 0x8000],
@@ -110,9 +114,13 @@ impl Gpu {
             bgp: 0,
             obp0: 0,
             obp1: 0,
+            color_mode,
             color_bg_palette_index: 0,
             color_bg_palette_auto_increment: false,
-            color_bg_palettes: [Color::rgb(0, 0, 0); 0x3F],
+            color_bg_palettes: [0; 0x3F],
+            color_obj_palette_index: 0,
+            color_obj_palette_auto_increment: false,
+            color_obj_palettes: [0; 0x3F],
             cycle_count: 0,
             interrupts: 0,
             updated: true
@@ -286,6 +294,57 @@ impl Gpu {
     pub fn set_obp1(&mut self, value: u8) { self.obp1 = value; self.updated() }
     pub fn get_obp1(&self) -> u8 { self.obp1 }
 
+    pub fn set_color_bg_palette_idx(&mut self, value: u8) {
+        self.color_bg_palette_index = value & 0b00111111;
+        self.color_bg_palette_auto_increment = value & 0b10000000 > 0;
+        self.updated()
+    }
+    pub fn get_color_bg_palette_idx(&self) -> u8 {
+        let mut val = 0b01000000 | self.color_bg_palette_index;
+        if self.color_bg_palette_auto_increment {
+            val |= 0b10000000;
+        }
+        val
+    }
+    pub fn set_color_bg_palette(&mut self, value: u8) {
+        self.color_bg_palettes[self.color_bg_palette_index as usize] = value;
+        if self.color_bg_palette_auto_increment {
+            self.color_bg_palette_index += 1;
+        }
+        self.updated()
+    }
+
+    pub fn get_color_bg_palette(&self) -> u8 {
+        self.color_bg_palettes[self.color_bg_palette_index as usize]
+    }
+
+    pub fn set_color_sprite_palette_idx(&mut self, value: u8) {
+        self.color_obj_palette_index = value & 0b00111111;
+        self.color_obj_palette_auto_increment = value & 0b10000000 > 0;
+        self.updated()
+    }
+
+    pub fn get_color_sprite_palette_idx(&self) -> u8 {
+        let mut val = 0b01000000 | self.color_obj_palette_index;
+        if self.color_obj_palette_auto_increment {
+            val |= 0b10000000;
+        }
+        val
+    }
+
+    pub fn set_color_sprite_palette(&mut self, value: u8) {
+        //let is_byte_1 = self.color_obj_palette_index % 2 == 0;
+        self.color_obj_palettes[self.color_obj_palette_index as usize] = value;
+        if self.color_obj_palette_auto_increment {
+            self.color_obj_palette_index = (self.color_obj_palette_index + 1) % 0x40; 
+        }
+        self.updated()
+    }
+
+    pub fn get_color_sprite_palette(&self) -> u8 {
+        self.color_obj_palettes[self.color_obj_palette_index as usize]
+    }
+
 
     fn get_color(& self, pixel_x: u8, pixel_y: u8) -> Color {
         let bg_or_win_color = // If the window is enabled and wx and wy are less than x and y draw window
@@ -319,7 +378,7 @@ impl Gpu {
                         8..=15 => self.get_sprite_tile(sprite.tile_number | 0x01),
                         _ => panic!()
                     };
-                    match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[(sprite_y % 8) as usize][(sprite_x % 8) as usize]) {
+                    match self.get_sprite_color(&sprite, tile[(sprite_y % 8) as usize][(sprite_x % 8) as usize]) {
                         Some(color) => {
                             return color
                         },
@@ -331,7 +390,7 @@ impl Gpu {
                     if sprite.flags & SPRITE_Y_FLIP == SPRITE_Y_FLIP { sprite_y = 7 - sprite_y }
                     let tile = self.get_sprite_tile(sprite.tile_number);
                     if sprite.flags & SPRITE_OBJ_TO_BG_PRIORITY == 0 || bg_or_win_color == 0  {
-                        match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[sprite_y as usize][sprite_x as usize]) {
+                        match self.get_sprite_color(&sprite, tile[sprite_y as usize][sprite_x as usize]) {
                             Some(color) => return color,
                             None => {}
                         }                
@@ -450,17 +509,31 @@ impl Gpu {
         }
     }
 
-    fn get_sprite_color(&self, useobp1: bool, value: u8) -> Option<Color> {
-        let palette = if useobp1 { self.obp1 } else { self.obp0 };
+    fn get_sprite_color(&self, sprite: &Sprite, value: u8) -> Option<Color> {
         if value == 0 {
             return None;
         }
-        match (palette >> (2 * value)) & 0b11 {
-            0 => Some(WHITE),
-            1 => Some(LIGHT_GRAY),
-            2 => Some(DARK_GRAY),
-            3 => Some(BLACK),
-            _ => Some(RED)
+
+        if self.color_mode {
+            let to_8_bit_color = |c: u8| (c << 3) | (c >> 2);
+            let palette_num = sprite.flags & 0b00000111;
+            let b0: u8 = self.color_obj_palettes[((palette_num * 8) + value * 2) as usize];
+            let b1: u8 = self.color_obj_palettes[((palette_num * 8) + value * 2) as usize + 1];
+            let color_bytes: u16 = u16::from_le_bytes([b0, b1]);
+            Some(Color::rgb(
+                to_8_bit_color((color_bytes & 0b11111) as u8),
+                to_8_bit_color(((color_bytes & 0b1111100000) >> 5) as u8),
+                to_8_bit_color(((color_bytes & 0b111110000000000) >> 10) as u8)
+            ))
+        } else {
+            let palette = if sprite.flags & SPRITE_PALETTE_NUM > 0 { self.obp1 } else { self.obp0 };
+            match (palette >> (2 * value)) & 0b11 {
+                0 => Some(WHITE),
+                1 => Some(LIGHT_GRAY),
+                2 => Some(DARK_GRAY),
+                3 => Some(BLACK),
+                _ => Some(RED)
+            }
         }
     }
 

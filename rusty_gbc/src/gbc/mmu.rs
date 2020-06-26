@@ -42,21 +42,19 @@ pub struct Mmu {
     hram: Ram,
     interupt_switch: u8,
     wram_select: u8,
-    pub booting: bool,
-    pub color_mode: bool,
+    pub booting: bool
 }
 
 impl Mmu {
     pub fn new(rom_bytes: Vec<u8>, gpu: Gpu) -> Mmu {
-        let color_mode = rom_bytes[0x143] & 0x80 == 0x80 || rom_bytes[0x143] & 0xC0 == 0xC0;
-        if color_mode {
-            println!("Color")
+        if gpu.color_mode {
+            println!("Color");
         } else {
             println!("{:02X}", rom_bytes[0x143])
         }
         let mbc = MemoryBank::new(rom_bytes);
         let mut wram = Vec::new();
-        for _ in 0 .. if color_mode { 2 } else { 8 } {   
+        for _ in 0 .. if gpu.color_mode { 2 } else { 8 } {   
             wram.push(Ram::new(0x2000));
         }
         Mmu {
@@ -71,8 +69,7 @@ impl Mmu {
             hram: Ram::new(0x7F),
             interupt_switch: 0,
             wram_select: 0,
-            booting: true,
-            color_mode
+            booting: true
         }
     }
 
@@ -98,7 +95,7 @@ impl Mmu {
             VRAM_START ..= VRAM_END => self.gpu.read_from_vram(address - VRAM_START),
             ERAM_START ..= ERAM_END => self.mbc.read_ram(address - ERAM_START),
             WRAM_BANK_0_START ..= WRAM_BANK_0_END => self.wram[0].read(address - WRAM_BANK_0_START),
-            WRAM_BANK_1_START ..= WRAM_END if self.color_mode => self.wram[self.wram_select as usize].read(address - WRAM_BANK_1_START),
+            WRAM_BANK_1_START ..= WRAM_END if self.gpu.color_mode => self.wram[self.wram_select as usize].read(address - WRAM_BANK_1_START),
             WRAM_BANK_1_START ..= WRAM_END => self.wram[1].read(address - WRAM_BANK_1_START),
             ECHO_START ..= ECHO_END => self.wram[((address - ECHO_START) / 0x2000) as usize].read(address - ECHO_START),
             OAM_START ..= OAM_END => self.gpu.read_from_oam(address - OAM_START),
@@ -121,10 +118,10 @@ impl Mmu {
             0xFF47 => self.gpu.get_bgp(),
             0xFF48 => self.gpu.get_obp0(),
             0xFF49 => self.gpu.get_obp1(),
-            // 0xFF68 => self.gpu.get_color_bg_palette_idx(),//cgb bgpi
-            // 0xFF69 => self.gpu.get_color_bg_palette(),//cgb pgpd
-            // 0xFF6A => self.gpu.get_color_sprite_palette_idx(), //cgb spi
-            // 0xFF6a => self.gpu.get_color_sprite_palette(), //cgb spd
+            0xFF68 => self.gpu.get_color_bg_palette_idx(),//cgb bgpi
+            0xFF69 => self.gpu.get_color_bg_palette(),//cgb pgpd
+            0xFF6A => self.gpu.get_color_sprite_palette_idx(), //cgb spi
+            0xFF6B => self.gpu.get_color_sprite_palette(), //cgb spd
             0xFF4A => self.gpu.get_wy(),
             0xFF4B => self.gpu.get_wx(),
             0xFF70 => self.wram_select | 0b11111000, // TODO verify
@@ -158,7 +155,7 @@ impl Mmu {
             VRAM_START ..= VRAM_END => self.gpu.write_to_vram(address - VRAM_START, value),
             ERAM_START ..= ERAM_END => self.mbc.write_ram(address - ERAM_START, value),
             WRAM_BANK_0_START ..= WRAM_BANK_0_END => self.wram[0].write(address - WRAM_BANK_0_START, value),
-            WRAM_BANK_1_START ..= WRAM_END if self.color_mode => self.wram[self.wram_select as usize].write(address - WRAM_BANK_1_START, value),
+            WRAM_BANK_1_START ..= WRAM_END if self.gpu.color_mode => self.wram[self.wram_select as usize].write(address - WRAM_BANK_1_START, value),
             WRAM_BANK_1_START ..= WRAM_END => self.wram[1].write(address - WRAM_BANK_1_START, value),
             ECHO_START ..= ECHO_END => self.wram[((address - ECHO_START) / 0x2000) as usize].write(address - ECHO_START, value),
             OAM_START ..= OAM_END => self.gpu.write_to_oam(address - OAM_START, value),
@@ -187,10 +184,10 @@ impl Mmu {
             // 0xFF53 => ,//cgb hdma3
             // 0xFF54 => ,//cgb hdma4
             // 0xFF55 => ,//cgb hdma5
-            // 0xFF68 => self.gpu.set_color_bg_palette_idx(value),//cgb bgpi
-            // 0xFF69 => self.gpu.set_color_bg_palette(value),//cgb pgpd
-            // 0xFF6A => self.gpu.set_color_sprite_palette_idx(value), //cgb spi
-            // 0xFF6a => self.gpu.set_color_sprite_palette(value), //cgb spd
+            0xFF68 => self.gpu.set_color_bg_palette_idx(value),//cgb bgpi
+            0xFF69 => self.gpu.set_color_bg_palette(value),//cgb pgpd
+            0xFF6A => self.gpu.set_color_sprite_palette_idx(value), //cgb spi
+            0xFF6B => self.gpu.set_color_sprite_palette(value), //cgb spd
             0xFF70 => self.wram_select = value & 0b00000111, // TODO verify
             IO_START ..= IO_END => self.io.write(address - IO_START, value),
             HRAM_START ..= HRAM_END => self.hram.write(address - HRAM_START, value),

@@ -57,7 +57,8 @@ fn main() -> Result<(), String> {
         let mut buffer = Vec::<u8>::new();
         file.read_to_end(&mut buffer).unwrap();
         
-        let gpu = Gpu::new().unwrap();
+        let color_mode = buffer[0x143] & 0x80 == 0x80 || buffer[0x143] & 0xC0 == 0xC0;
+        let gpu = Gpu::new(color_mode).unwrap();
         let mut gbc = Cpu::new(buffer, gpu);
 
         if args.len() > 2 {
