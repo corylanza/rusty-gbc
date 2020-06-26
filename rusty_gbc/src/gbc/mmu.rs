@@ -118,12 +118,13 @@ impl Mmu {
             0xFF47 => self.gpu.get_bgp(),
             0xFF48 => self.gpu.get_obp0(),
             0xFF49 => self.gpu.get_obp1(),
+            0xFF4A => self.gpu.get_wy(),
+            0xFF4B => self.gpu.get_wx(),
+            0xFF4F => self.gpu.get_vram_bank(),
             0xFF68 => self.gpu.get_color_bg_palette_idx(),//cgb bgpi
             0xFF69 => self.gpu.get_color_bg_palette(),//cgb pgpd
             0xFF6A => self.gpu.get_color_sprite_palette_idx(), //cgb spi
             0xFF6B => self.gpu.get_color_sprite_palette(), //cgb spd
-            0xFF4A => self.gpu.get_wy(),
-            0xFF4B => self.gpu.get_wx(),
             0xFF70 => self.wram_select | 0b11111000, // TODO verify
             IO_START ..= IO_END => self.io.read(address - IO_START),
             HRAM_START ..= HRAM_END => self.hram.read(address - HRAM_START),
@@ -179,6 +180,7 @@ impl Mmu {
             0xFF49 => self.gpu.set_obp1(value),
             0xFF4A => self.gpu.set_wy(value),
             0xFF4B => self.gpu.set_wx(value),
+            0xFF4F => self.gpu.select_vram_bank(value),
             // 0xFF51 => ,//cgb hdma1
             // 0xFF52 => ,//cgb hdma2
             // 0xFF53 => ,//cgb hdma3
