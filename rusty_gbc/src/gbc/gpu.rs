@@ -59,10 +59,10 @@ pub struct Gpu {
     pub color_mode: bool,
     color_bg_palette_index: u8,
     color_bg_palette_auto_increment: bool,
-    color_bg_palettes: [u8; 0x3F],
+    color_bg_palettes: [u8; 0x40],
     color_obj_palette_index: u8,
     color_obj_palette_auto_increment: bool,
-    color_obj_palettes: [u8; 0x3F],
+    color_obj_palettes: [u8; 0x40],
     cycle_count: usize,
     pub interrupts: u8,
     updated: bool
@@ -119,10 +119,10 @@ impl Gpu {
             color_mode,
             color_bg_palette_index: 0,
             color_bg_palette_auto_increment: false,
-            color_bg_palettes: [0; 0x3F],
+            color_bg_palettes: [0; 0x40],
             color_obj_palette_index: 0,
             color_obj_palette_auto_increment: false,
-            color_obj_palettes: [0; 0x3F],
+            color_obj_palettes: [0; 0x40],
             cycle_count: 0,
             interrupts: 0,
             updated: true
@@ -371,7 +371,7 @@ impl Gpu {
             } else
             // TODO window priority works differently for CGB, on DMG works as enable bg
             // If the background is enabled draw the background
-            if self.bg_window_priority {
+            if self.color_mode || self.bg_window_priority {
                 let (scrolled_x, scrolled_y) = (pixel_x.wrapping_add(self.scx), pixel_y.wrapping_add(self.scy));
                 let (tile, attributes) = self.get_tile_at(self.bg_tile_map_select, scrolled_x / 8, scrolled_y / 8);
                 (tile[(scrolled_y % 8)as usize][(scrolled_x % 8) as usize], attributes)
@@ -396,9 +396,7 @@ impl Gpu {
                         _ => panic!()
                     };
                     match self.get_sprite_color(&sprite, tile[(sprite_y % 8) as usize][(sprite_x % 8) as usize]) {
-                        Some(color) => {
-                            return color
-                        },
+                        Some(color) => return color,
                         None => {}
                     }
                 }
@@ -431,29 +429,6 @@ impl Gpu {
         display.update_line_from_buffer(buffer, pixel_y);
     }
 
-    // pub fn render_background(&mut self) {
-    //     self.background_canvas.set_draw_color(Color::RGB(0, 0xFF, 0xFF));
-    //     self.background_canvas.clear();
-    //     for tile_y in 0..32 {
-    //         for tile_x in 0..32 {
-    //             let tile = self.get_bg_tile_at(tile_y, tile_x);
-    //             render_tile(&mut self.background_canvas, tile, tile_x as usize, tile_y as usize);
-    //         }
-    //     }
-    //     self.background_canvas.set_draw_color(Color::RGB(0, 0, 0));
-    //     self.background_canvas.draw_rect(Rect::new(self.scx as i32 * SCALE as i32, self.scy as i32 * SCALE as i32, SCREEN_WIDTH as u32 * SCALE as u32, SCREEN_HEIGHT as u32 * SCALE as u32)).unwrap();
-    //     self.background_canvas.present();
-    // }
-
-    // pub fn render_tileset(&mut self, tileset_canvas: &mut WindowCanvas) {
-    //     tileset_canvas.set_draw_color(Color::RGB(0xFF, 0xFF, 0xFF));
-    //     tileset_canvas.clear();
-    //     for tile in 0..384 {
-    //         render_tile(tileset_canvas, self.tile_set[tile], tile % 16, tile / 16, 2);
-    //     }
-    //     tileset_canvas.present();
-    // }
-
     fn get_tile_at(&self, tilemap: bool, x: u8, y: u8) -> (Tile, u8) {
         let address = y as u16 * 32 + x as u16;
         let (tile_id, tile_attributes) = if tilemap {
@@ -463,6 +438,7 @@ impl Gpu {
             (self.vram[0][(address + 0x1800) as usize],
              self.vram[1][(address + 0x1800) as usize])
         };
+
         let tile_vram_bank = if tile_attributes & 0b1000 > 0 { 1 } else { 0 };
         (if self.bg_window_tile_data {
             self.tile_set[tile_vram_bank as usize][tile_id as usize]

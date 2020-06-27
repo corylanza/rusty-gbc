@@ -16,7 +16,7 @@ const ERAM_START: u16 = 0xA000;
 const ERAM_END: u16 = 0xBFFF;
 const WRAM_BANK_0_START: u16 = 0xC000;
 const WRAM_BANK_0_END: u16 = 0xCFFF;
-const WRAM_BANK_1_START: u16 = 0xC000;
+const WRAM_BANK_1_START: u16 = 0xD000;
 const WRAM_END: u16 = 0xDFFF;
 const ECHO_START: u16 = 0xE000;
 const ECHO_END: u16 = 0xFDFF;
@@ -34,6 +34,7 @@ pub struct Mmu {
     boot_rom: Vec<u8>,
     pub gpu: Gpu,
     dma: Option<Dma>,
+    hdma: Option<Hdma>,
     mbc: Box<dyn MemoryBank>,
     wram: Vec<Ram>,
     pub input: Input,
@@ -49,19 +50,22 @@ impl Mmu {
     pub fn new(rom_bytes: Vec<u8>, gpu: Gpu) -> Mmu {
         if gpu.color_mode {
             println!("Color");
-        } else {
-            println!("{:02X}", rom_bytes[0x143])
         }
+        
         let mbc = MemoryBank::new(rom_bytes);
         let mut wram = Vec::new();
-        for _ in 0 .. if gpu.color_mode { 2 } else { 8 } {   
+        for _ in 0 .. if gpu.color_mode { 8 } else { 2 } {   
             wram.push(Ram::new(0x2000));
         }
+
+        let boot_rom = if gpu.color_mode { super::boot::load_cgb_rom() } else { super::boot::load_rom() };
+
         Mmu {
-            boot_rom: super::boot::load_rom(),
+            boot_rom,
             mbc,
             gpu,
             dma: None,
+            hdma: None,
             wram: wram,
             input: Input::new(),
             timer: Timer::new(),
@@ -89,7 +93,13 @@ impl Mmu {
 
     #[allow(overlapping_patterns)]
     pub fn read(&self, address: u16) -> u8 {
+
+        if address == 0x42 {
+            println!("{:04X}", address);
+        }
+
         let output = match address {
+            0 ..= 0x8FF if self.booting && self.gpu.color_mode => self.boot_rom[address as usize],
             0 ..= 0xFF if self.booting => self.boot_rom[address as usize],
             ROM_START ..= ROM_END => self.mbc.read_rom(address),
             VRAM_START ..= VRAM_END => self.gpu.read_from_vram(address - VRAM_START),
@@ -121,6 +131,12 @@ impl Mmu {
             0xFF4A => self.gpu.get_wy(),
             0xFF4B => self.gpu.get_wx(),
             0xFF4F => self.gpu.get_vram_bank(),
+            // 0xFF50 => boot rom enabled
+            0xFF51 => 0xFF, // HDMA1 High Source byte (write only),
+            0xFF52 => 0xFF, // HDMA2 Low Source byte (write only),
+            0xFF53 => 0xFF, // HDMA3 High dest byte (write only),
+            0xFF54 => 0xFF, // HDMA4 Low dest byte (write only),
+            //0xFF55 => self.hdma.unwrap().value, // HDMA5 Length/mode/start (write only),
             0xFF68 => self.gpu.get_color_bg_palette_idx(),//cgb bgpi
             0xFF69 => self.gpu.get_color_bg_palette(),//cgb pgpd
             0xFF6A => self.gpu.get_color_sprite_palette_idx(), //cgb spi
@@ -149,6 +165,11 @@ impl Mmu {
         if self.booting && address == 0xFF50 {
             self.booting = false;
             self.mbc.print_metadata();
+            println!("boot complete");
+        }
+
+        if address == 0xff4f {
+            println!("{:04X} {:02X}", address, value);
         }
 
         match address {
@@ -180,17 +201,21 @@ impl Mmu {
             0xFF49 => self.gpu.set_obp1(value),
             0xFF4A => self.gpu.set_wy(value),
             0xFF4B => self.gpu.set_wx(value),
+            0xFF4D => panic!("Double speed not implemented"),
             0xFF4F => self.gpu.select_vram_bank(value),
-            // 0xFF51 => ,//cgb hdma1
-            // 0xFF52 => ,//cgb hdma2
-            // 0xFF53 => ,//cgb hdma3
-            // 0xFF54 => ,//cgb hdma4
-            // 0xFF55 => ,//cgb hdma5
+            0xFF51 => {}, // HDMA1 High Source byte (write only),
+            0xFF52 => {}, // HDMA2 Low Source byte (write only),
+            0xFF53 => {}, // HDMA3 High dest byte (write only),
+            0xFF54 => {}, // HDMA4 Low dest byte (write only),
+            0xFF55 => panic!("HDMA not implemented"),//self.hdma.unwrap().value, // HDMA5 Length/mode/start (write only),
             0xFF68 => self.gpu.set_color_bg_palette_idx(value),//cgb bgpi
             0xFF69 => self.gpu.set_color_bg_palette(value),//cgb pgpd
             0xFF6A => self.gpu.set_color_sprite_palette_idx(value), //cgb spi
             0xFF6B => self.gpu.set_color_sprite_palette(value), //cgb spd
-            0xFF70 => self.wram_select = value & 0b00000111, // TODO verify
+            0xFF70 => {
+                self.wram_select = if value == 1 { 1 } else { value & 0b00000111 }; // TODO verify
+                println!("selected {} with value {}", self.wram_select, value);
+            },
             IO_START ..= IO_END => self.io.write(address - IO_START, value),
             HRAM_START ..= HRAM_END => self.hram.write(address - HRAM_START, value),
             INTERUPTS_ENABLE => self.interupt_switch = value,
