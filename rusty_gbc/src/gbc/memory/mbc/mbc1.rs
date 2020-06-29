@@ -49,7 +49,7 @@ impl MemoryBank for MBC1 {
         match address {
             0 ..= 0x1FFF => {
                 self.ram_enabled = value & 0x0A == 0x0A;
-                println!("ram enabled: {}", self.ram_enabled);
+                //println!("ram enabled: {}", self.ram_enabled);
             },
             0x2000 ..= 0x3FFF => {
                 self.selected_rom = match value & 0b00011111 {
@@ -79,7 +79,9 @@ impl MemoryBank for MBC1 {
     fn read_rom(&self, address: u16) -> u8 {
         match address {
             0 ..= 0x3FFF => self.rom_banks[0][address as usize],
-            0x4000 ..= 0x7FFF => self.rom_banks[self.selected_rom() as usize][(address - 0x4000) as usize],
+            0x4000 ..= 0x7FFF => {
+                self.rom_banks[self.selected_rom() as usize % self.rom_banks.len()][(address - 0x4000) as usize]
+            },
             _ => panic!("ROM goes only to 0x7FFF, tried to read outside bounds")
         }
     }
