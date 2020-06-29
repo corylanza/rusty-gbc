@@ -70,8 +70,9 @@ impl MemoryBank for MBC1 {
         }
     }
     fn write_ram(&mut self, address: u16, value: u8) {
+        let ram_bank_count = self.ram_banks.len();
         match self.ram_enabled {
-            true if self.ram_banking_mode => self.ram_banks[self.two_bits as usize][address as usize] = value,
+            true if self.ram_banking_mode => self.ram_banks[self.two_bits as usize % ram_bank_count][address as usize] = value,
             true => self.ram_banks[0][address as usize] = value,
             false => {}
         }
@@ -87,7 +88,7 @@ impl MemoryBank for MBC1 {
     }
     fn read_ram(&self, address: u16) -> u8 {
         match self.ram_enabled {
-            true if self.ram_banking_mode => self.ram_banks[self.two_bits as usize][address as usize],
+            true if self.ram_banking_mode => self.ram_banks[self.two_bits as usize % self.ram_banks.len()][address as usize],
             true => self.ram_banks[0][address as usize],
             false => 0xFF
         }
