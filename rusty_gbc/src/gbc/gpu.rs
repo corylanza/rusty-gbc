@@ -363,18 +363,21 @@ impl Gpu {
 
 
     fn get_color(& self, pixel_x: u8, pixel_y: u8) -> Color {
+        let reverse_x_if = |condition: bool, x: u8| if condition { 7 - x } else { x };
+        let reverse_y_if = |condition: bool, y: u8| if condition { 7 - y } else { y };
+
         let (bg_or_win_color, bg_attributes) = // If the window is enabled and wx and wy are less than x and y draw window
             if self.window_enable && pixel_x + WINDOW_X_SHIFT >= self.wx && self.window_internal_line_counter.is_some() { // pixel_y >= self.wy {
                 let (window_x, window_y) = ((pixel_x + WINDOW_X_SHIFT) - self.wx, self.window_internal_line_counter.unwrap());
                 let (tile, attributes) = self.get_tile_at(self.window_tile_map, window_x / 8, window_y / 8);
-                (tile[(window_y % 8) as usize][(window_x % 8) as usize], attributes)
+                (tile[reverse_y_if(attributes & 0b01000000 > 0, window_y % 8) as usize][reverse_x_if(attributes & 0b00100000 > 0, window_x % 8) as usize], attributes)
             } else
             // TODO window priority works differently for CGB, on DMG works as enable bg
             // If the background is enabled draw the background
             if self.color_mode || self.bg_window_priority {
                 let (scrolled_x, scrolled_y) = (pixel_x.wrapping_add(self.scx), pixel_y.wrapping_add(self.scy));
                 let (tile, attributes) = self.get_tile_at(self.bg_tile_map_select, scrolled_x / 8, scrolled_y / 8);
-                (tile[(scrolled_y % 8)as usize][(scrolled_x % 8) as usize], attributes)
+                (tile[reverse_y_if(attributes & 0b01000000 > 0, scrolled_y % 8) as usize][reverse_x_if(attributes & 0b00100000 > 0, scrolled_x % 8) as usize], attributes)
             } else { (0, 0) };
 
         // Compare x to all 10 sprites, if any are visible draw that scanline of the sprite
