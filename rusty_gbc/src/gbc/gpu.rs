@@ -309,7 +309,7 @@ impl Gpu {
         val
     }
     pub fn set_color_bg_palette(&mut self, value: u8) {
-        self.color_bg_palettes[self.color_bg_palette_index as usize] = value;
+        self.color_bg_palettes[self.color_bg_palette_index as usize % 0x40] = value;
         if self.color_bg_palette_auto_increment {
             self.color_bg_palette_index += 1;
         }
@@ -317,7 +317,7 @@ impl Gpu {
     }
 
     pub fn get_color_bg_palette(&self) -> u8 {
-        self.color_bg_palettes[self.color_bg_palette_index as usize]
+        self.color_bg_palettes[self.color_bg_palette_index as usize % 0x40]
     }
 
     pub fn set_color_sprite_palette_idx(&mut self, value: u8) {
