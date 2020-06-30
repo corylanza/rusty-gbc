@@ -94,12 +94,8 @@ impl Mmu {
     #[allow(overlapping_patterns)]
     pub fn read(&self, address: u16) -> u8 {
 
-        if address == 0x42 {
-            println!("{:04X}", address);
-        }
-
         let output = match address {
-            0 ..= 0x8FF if self.booting && self.gpu.color_mode => self.boot_rom[address as usize],
+            0 ..= 0x100 | 0x200 ..= 0x8FF if self.booting && self.gpu.color_mode => self.boot_rom[address as usize],
             0 ..= 0xFF if self.booting => self.boot_rom[address as usize],
             ROM_START ..= ROM_END => self.mbc.read_rom(address),
             VRAM_START ..= VRAM_END => self.gpu.read_from_vram(address - VRAM_START),
@@ -166,10 +162,6 @@ impl Mmu {
             self.booting = false;
             self.mbc.print_metadata();
             println!("boot complete");
-        }
-
-        if address == 0xff4f {
-            println!("{:04X} {:02X}", address, value);
         }
 
         match address {
