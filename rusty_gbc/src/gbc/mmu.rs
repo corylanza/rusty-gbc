@@ -127,18 +127,18 @@ impl Mmu {
             0xFF49 => self.gpu.get_obp1(),
             0xFF4A => self.gpu.get_wy(),
             0xFF4B => self.gpu.get_wx(),
-            0xFF4F => self.gpu.get_vram_bank(),
+            0xFF4F if self.gpu.color_mode => self.gpu.get_vram_bank(),
             // 0xFF50 => boot rom enabled
-            0xFF51 => 0xFF, // HDMA1 High Source byte (write only),
-            0xFF52 => 0xFF, // HDMA2 Low Source byte (write only),
-            0xFF53 => 0xFF, // HDMA3 High dest byte (write only),
-            0xFF54 => 0xFF, // HDMA4 Low dest byte (write only),
-            //0xFF55 => self.hdma.unwrap().value, // HDMA5 Length/mode/start (write only),
-            0xFF68 => self.gpu.get_color_bg_palette_idx(),//cgb bgpi
-            0xFF69 => self.gpu.get_color_bg_palette(),//cgb pgpd
-            0xFF6A => self.gpu.get_color_sprite_palette_idx(), //cgb spi
-            0xFF6B => self.gpu.get_color_sprite_palette(), //cgb spd
-            0xFF70 => self.wram_select | 0b11111000, // TODO verify
+            0xFF51 if self.gpu.color_mode => 0xFF, // HDMA1 High Source byte (write only),
+            0xFF52 if self.gpu.color_mode => 0xFF, // HDMA2 Low Source byte (write only),
+            0xFF53 if self.gpu.color_mode => 0xFF, // HDMA3 High dest byte (write only),
+            0xFF54 if self.gpu.color_mode => 0xFF, // HDMA4 Low dest byte (write only),
+            0xFF55 if self.gpu.color_mode => panic!("HDMA not implemented"), // HDMA5 Length/mode/start (write only),
+            0xFF68 if self.gpu.color_mode => self.gpu.get_color_bg_palette_idx(),//cgb bgpi
+            0xFF69 if self.gpu.color_mode => self.gpu.get_color_bg_palette(),//cgb pgpd
+            0xFF6A if self.gpu.color_mode => self.gpu.get_color_sprite_palette_idx(), //cgb spi
+            0xFF6B if self.gpu.color_mode => self.gpu.get_color_sprite_palette(), //cgb spd
+            0xFF70 if self.gpu.color_mode => self.wram_select | 0b11111000, // TODO verify
             IO_START ..= IO_END => self.io.read(address - IO_START),
             HRAM_START ..= HRAM_END => self.hram.read(address - HRAM_START),
             INTERUPTS_ENABLE => self.interupt_switch
@@ -194,18 +194,18 @@ impl Mmu {
             0xFF49 => self.gpu.set_obp1(value),
             0xFF4A => self.gpu.set_wy(value),
             0xFF4B => self.gpu.set_wx(value),
-            0xFF4D => panic!("Double speed not implemented"),
-            0xFF4F => self.gpu.select_vram_bank(value),
-            0xFF51 => {}, // HDMA1 High Source byte (write only),
-            0xFF52 => {}, // HDMA2 Low Source byte (write only),
-            0xFF53 => {}, // HDMA3 High dest byte (write only),
-            0xFF54 => {}, // HDMA4 Low dest byte (write only),
+            0xFF4D if self.gpu.color_mode => panic!("Double speed not implemented"),
+            0xFF4F if self.gpu.color_mode => self.gpu.select_vram_bank(value),
+            0xFF51 if self.gpu.color_mode => {}, // HDMA1 High Source byte (write only),
+            0xFF52 if self.gpu.color_mode => {}, // HDMA2 Low Source byte (write only),
+            0xFF53 if self.gpu.color_mode => {}, // HDMA3 High dest byte (write only),
+            0xFF54 if self.gpu.color_mode => {}, // HDMA4 Low dest byte (write only),
             //0xFF55 => panic!("HDMA not implemented"),//self.hdma.unwrap().value, // HDMA5 Length/mode/start (write only),
-            0xFF68 => self.gpu.set_color_bg_palette_idx(value),//cgb bgpi
-            0xFF69 => self.gpu.set_color_bg_palette(value),//cgb pgpd
-            0xFF6A => self.gpu.set_color_sprite_palette_idx(value), //cgb spi
-            0xFF6B => self.gpu.set_color_sprite_palette(value), //cgb spd
-            0xFF70 => {
+            0xFF68 if self.gpu.color_mode => self.gpu.set_color_bg_palette_idx(value),//cgb bgpi
+            0xFF69 if self.gpu.color_mode => self.gpu.set_color_bg_palette(value),//cgb pgpd
+            0xFF6A if self.gpu.color_mode => self.gpu.set_color_sprite_palette_idx(value), //cgb spi
+            0xFF6B if self.gpu.color_mode => self.gpu.set_color_sprite_palette(value), //cgb spd
+            0xFF70 if self.gpu.color_mode => {
                 self.wram_select = if value == 1 { 1 } else { value & 0b00000111 }; // TODO verify
                 println!("selected {} with value {}", self.wram_select, value);
             },
