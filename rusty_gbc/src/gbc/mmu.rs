@@ -95,7 +95,8 @@ impl Mmu {
     pub fn read(&self, address: u16) -> u8 {
 
         let output = match address {
-            0 ..= 0x100 | 0x150 ..= 0x8FF if self.booting && self.gpu.color_mode => self.boot_rom[address as usize],
+            // In color mode bios is $8FF bytes, leave $100-$14F unmapped so bios can read cartridge header
+            0 ..= 0xFF | 0x150 ..= 0x8FF if self.booting && self.gpu.color_mode => self.boot_rom[address as usize],
             0 ..= 0xFF if self.booting => self.boot_rom[address as usize],
             ROM_START ..= ROM_END => self.mbc.read_rom(address),
             VRAM_START ..= VRAM_END => self.gpu.read_from_vram(address - VRAM_START),
