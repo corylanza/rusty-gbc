@@ -95,7 +95,7 @@ impl Mmu {
     pub fn read(&self, address: u16) -> u8 {
 
         let output = match address {
-            0 ..= 0x100 | 0x200 ..= 0x8FF if self.booting && self.gpu.color_mode => self.boot_rom[address as usize],
+            0 ..= 0x100 | 0x150 ..= 0x8FF if self.booting && self.gpu.color_mode => self.boot_rom[address as usize],
             0 ..= 0xFF if self.booting => self.boot_rom[address as usize],
             ROM_START ..= ROM_END => self.mbc.read_rom(address),
             VRAM_START ..= VRAM_END => self.gpu.read_from_vram(address - VRAM_START),
@@ -199,7 +199,7 @@ impl Mmu {
             0xFF52 => {}, // HDMA2 Low Source byte (write only),
             0xFF53 => {}, // HDMA3 High dest byte (write only),
             0xFF54 => {}, // HDMA4 Low dest byte (write only),
-            0xFF55 => panic!("HDMA not implemented"),//self.hdma.unwrap().value, // HDMA5 Length/mode/start (write only),
+            //0xFF55 => panic!("HDMA not implemented"),//self.hdma.unwrap().value, // HDMA5 Length/mode/start (write only),
             0xFF68 => self.gpu.set_color_bg_palette_idx(value),//cgb bgpi
             0xFF69 => self.gpu.set_color_bg_palette(value),//cgb pgpd
             0xFF6A => self.gpu.set_color_sprite_palette_idx(value), //cgb spi
