@@ -150,6 +150,9 @@ impl Cpu {
                 if self.log {
                     println!("halting");
                 }
+                if opcode == 0x10 {
+                    return 4;
+                }
                 self.halted = true; 4 
             }
             // LD B,n

@@ -34,7 +34,7 @@ pub struct Mmu {
     boot_rom: Vec<u8>,
     pub gpu: Gpu,
     dma: Option<Dma>,
-    hdma: Option<Hdma>,
+    hdma: Hdma,
     mbc: Box<dyn MemoryBank>,
     wram: Vec<Ram>,
     pub input: Input,
@@ -43,7 +43,8 @@ pub struct Mmu {
     hram: Ram,
     interupt_switch: u8,
     wram_select: u8,
-    pub booting: bool
+    pub booting: bool,
+    pub prepare_doublespeed: bool
 }
 
 impl Mmu {
@@ -65,7 +66,7 @@ impl Mmu {
             mbc,
             gpu,
             dma: None,
-            hdma: None,
+            hdma: Hdma::new(),
             wram: wram,
             input: Input::new(),
             timer: Timer::new(),
@@ -73,7 +74,8 @@ impl Mmu {
             hram: Ram::new(0x7F),
             interupt_switch: 0,
             wram_select: 0,
-            booting: true
+            booting: true,
+            prepare_doublespeed: false
         }
     }
 
@@ -89,6 +91,7 @@ impl Mmu {
             Some(ref dma) => self.dma_step(*dma, cycles),
             None => {}
         };
+        self.hdma_step();
     }
 
     #[allow(overlapping_patterns)]
@@ -133,7 +136,7 @@ impl Mmu {
             0xFF52 if self.gpu.color_mode => 0xFF, // HDMA2 Low Source byte (write only),
             0xFF53 if self.gpu.color_mode => 0xFF, // HDMA3 High dest byte (write only),
             0xFF54 if self.gpu.color_mode => 0xFF, // HDMA4 Low dest byte (write only),
-            0xFF55 if self.gpu.color_mode => panic!("HDMA not implemented"), // HDMA5 Length/mode/start (write only),
+            0xFF55 if self.gpu.color_mode => 0xFF, // HDMA5 Length/mode/start (write only),
             0xFF68 if self.gpu.color_mode => self.gpu.get_color_bg_palette_idx(),//cgb bgpi
             0xFF69 if self.gpu.color_mode => self.gpu.get_color_bg_palette(),//cgb pgpd
             0xFF6A if self.gpu.color_mode => self.gpu.get_color_sprite_palette_idx(), //cgb spi
@@ -194,20 +197,19 @@ impl Mmu {
             0xFF49 => self.gpu.set_obp1(value),
             0xFF4A => self.gpu.set_wy(value),
             0xFF4B => self.gpu.set_wx(value),
-            0xFF4D if self.gpu.color_mode => panic!("Double speed not implemented"),
+            0xFF4D if self.gpu.color_mode => {},//panic!("Double speed not implemented"),
             0xFF4F if self.gpu.color_mode => self.gpu.select_vram_bank(value),
-            0xFF51 if self.gpu.color_mode => {}, // HDMA1 High Source byte (write only),
-            0xFF52 if self.gpu.color_mode => {}, // HDMA2 Low Source byte (write only),
-            0xFF53 if self.gpu.color_mode => {}, // HDMA3 High dest byte (write only),
-            0xFF54 if self.gpu.color_mode => {}, // HDMA4 Low dest byte (write only),
-            //0xFF55 => panic!("HDMA not implemented"),//self.hdma.unwrap().value, // HDMA5 Length/mode/start (write only),
+            0xFF51 if self.gpu.color_mode => self.hdma.source = u16::from_be_bytes([value, (self.hdma.source & 0xFF00) as u8]), // HDMA1 High Source byte (write only),
+            0xFF52 if self.gpu.color_mode => self.hdma.source = u16::from_be_bytes([(self.hdma.source >> 8) as u8, value & 0b11110000]), // HDMA2 Low Source byte (write only) lower 4 bits ignored,
+            0xFF53 if self.gpu.color_mode => self.hdma.destination = u16::from_be_bytes([value, (self.hdma.destination & 0b0001111100000000) as u8]), // HDMA3 High dest byte (write only) upper 3 bits ignored,
+            0xFF54 if self.gpu.color_mode => self.hdma.destination = u16::from_be_bytes([(self.hdma.destination >> 8) as u8, value & 0b11110000]), // HDMA4 Low dest byte (write only) lower 4 bits ignored,
+            0xFF55 if self.gpu.color_mode => self.hdma.start(value), // HDMA5 Length/mode/start (write only),
             0xFF68 if self.gpu.color_mode => self.gpu.set_color_bg_palette_idx(value),//cgb bgpi
             0xFF69 if self.gpu.color_mode => self.gpu.set_color_bg_palette(value),//cgb pgpd
             0xFF6A if self.gpu.color_mode => self.gpu.set_color_sprite_palette_idx(value), //cgb spi
             0xFF6B if self.gpu.color_mode => self.gpu.set_color_sprite_palette(value), //cgb spd
             0xFF70 if self.gpu.color_mode => {
-                self.wram_select = if value == 1 { 1 } else { value & 0b00000111 }; // TODO verify
-                println!("selected {} with value {}", self.wram_select, value);
+                self.wram_select = if value == 0 { 1 } else { value & 0b00000111 };
             },
             IO_START ..= IO_END => self.io.write(address - IO_START, value),
             HRAM_START ..= HRAM_END => self.hram.write(address - HRAM_START, value),
@@ -249,6 +251,17 @@ impl Mmu {
         }
         self.dma = Some(dma);
     }
+
+    fn hdma_step(&mut self) {
+        if self.gpu.color_mode && self.hdma.active() {
+            //println!("transferred");
+            for i in 0 .. self.hdma.remaining_len() {
+                let val = self.read(self.hdma.source + i);
+                self.write(self.hdma.destination + i, val);
+            }
+            self.hdma.value = 0xFF;
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -273,6 +286,35 @@ impl Dma {
 struct Hdma {
     value: u8,
     source: u16,
-    destination: u16,
-    length: u8
+    destination: u16
+}
+
+impl Hdma {
+    fn new() -> Self {
+        Hdma {
+            value: 0,
+            source: 0,
+            destination: 0
+        }
+    }
+
+    fn start(&mut self, value: u8) {
+        self.value = value;
+        let bytes_count = self.remaining_len();
+        let h_blank_mode = value & 0b10000000 > 1;
+        //println!("DMA started from {:04X} to {:04X}, {} bytes, H-blank mode {}", self.source, self.destination, bytes_count, h_blank_mode);
+    }
+
+    fn active(&self) -> bool {
+        self.value != 0xFF
+    }
+
+    fn remaining_len(&mut self) -> u16 {
+        //the lower 7 bits of which specify the Transfer Length (divided by 10h, minus 1)
+        if self.value == 0xFF {
+            0
+        } else {
+            ((self.value & 0b011111111) as u16 + 1) * 0x10
+        }
+    }
 }
