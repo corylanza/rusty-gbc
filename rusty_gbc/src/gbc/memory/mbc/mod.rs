@@ -1,8 +1,10 @@
 use std::str;
 
 mod mbc1;
+mod mbc5;
 
 use mbc1::MBC1;
+use mbc5::MBC5;
 
 const MEMORY_BANK_TYPE_ADDRESS: u16 = 0x0147;
 const ROM_SIZE_ADDRESS: u16 = 0x0148;
@@ -37,6 +39,7 @@ impl dyn MemoryBank {
         match mbc_type {
             0 => NoMBC::load_rom(&rom_bytes),
             1 ..= 3 => Box::new(MBC1::load_rom(&rom_bytes, rom_bank_count, ram_bank_count, ram_bank_size)),
+            0x19 ..= 0x1E => Box::new(MBC5::load_rom(&rom_bytes, rom_bank_count, ram_bank_count, ram_bank_size)),
             _ => panic!("not implemented {}", mbc_type)
         }
     }
