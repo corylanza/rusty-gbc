@@ -29,7 +29,7 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(rom_bytes: Vec<u8>, gpu: Gpu) -> Cpu {
+    pub fn new(rom_bytes: Vec<u8>, gpu: Box<Gpu>) -> Cpu {
         Cpu {
             mem: Mmu::new(rom_bytes, gpu),
             regs: Registers::new(),

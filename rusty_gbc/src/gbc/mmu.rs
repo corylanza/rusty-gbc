@@ -32,7 +32,7 @@ pub const INTERUPT_REQUEST: u16 = 0xFF0F;
 
 pub struct Mmu {
     boot_rom: Vec<u8>,
-    pub gpu: Gpu,
+    pub gpu: Box<Gpu>,
     dma: Option<Dma>,
     hdma: Hdma,
     mbc: Box<dyn MemoryBank>,
@@ -48,7 +48,7 @@ pub struct Mmu {
 }
 
 impl Mmu {
-    pub fn new(rom_bytes: Vec<u8>, gpu: Gpu) -> Mmu {
+    pub fn new(rom_bytes: Vec<u8>, gpu: Box<Gpu>) -> Mmu {
         if gpu.color_mode {
             println!("Color");
         }

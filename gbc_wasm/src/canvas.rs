@@ -13,7 +13,8 @@ pub struct Canvas {
     pub ctx: CanvasRenderingContext2d,
     pixel_buffer: [u8; PIXEL_BUFFER_SIZE],
     scaled_width: u32,
-    scaled_height: u32
+    scaled_height: u32,
+    frame_count: u8,
 }
 
 impl Canvas {
@@ -38,24 +39,28 @@ impl Canvas {
             ctx,
             pixel_buffer: [0; PIXEL_BUFFER_SIZE],
             scaled_width,
-            scaled_height
+            scaled_height,
+            frame_count: 0,
         }
     }
 }
 
 impl Display for Canvas {
     fn render_frame(&mut self) {
+        self.frame_count = if self.frame_count > 6 { 0 } else { self.frame_count + 1 };
         self.ctx.put_image_data(self.image_data(&self.pixel_buffer), 0.0, 0.0).unwrap();
     }
 
     fn update_line_from_buffer(&mut self, buffer: [Color; SCREEN_WIDTH as usize], pixel_y: u8) {
-        for pixel_x in 0..SCREEN_WIDTH {
-            let color = buffer[pixel_x as usize];
-            let buf_idx = ((pixel_y as usize * SCREEN_WIDTH as usize) + (pixel_x as usize)) * BYTES_PER_PIXEL as usize;
-            self.pixel_buffer[buf_idx] = color.r;
-            self.pixel_buffer[buf_idx + 1] = color.g;
-            self.pixel_buffer[buf_idx + 2] = color.b;
-            self.pixel_buffer[buf_idx + 3] = 0xFF;
+        if self.frame_count == 0 {
+            for pixel_x in 0..SCREEN_WIDTH {
+                let color = buffer[pixel_x as usize];
+                let buf_idx = ((pixel_y as usize * SCREEN_WIDTH as usize) + (pixel_x as usize)) * BYTES_PER_PIXEL as usize;
+                self.pixel_buffer[buf_idx] = color.r;
+                self.pixel_buffer[buf_idx + 1] = color.g;
+                self.pixel_buffer[buf_idx + 2] = color.b;
+                self.pixel_buffer[buf_idx + 3] = 0xFF;
+            }
         }
     }
 }

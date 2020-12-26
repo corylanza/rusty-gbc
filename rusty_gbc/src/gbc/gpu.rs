@@ -82,8 +82,8 @@ fn empty_tile() -> Tile {
 }
 
 impl Gpu {
-    pub fn new(color_mode: bool) -> Result<Self, String> {
-        Ok(Gpu {
+    pub fn new(color_mode: bool) -> Result<Box<Gpu>, String> {
+        Ok(Box::new(Gpu {
             oam: [0; 0xA0],
             vram: [[0; 0x8000]; 2],
             vram_bank_1_selected: false,
@@ -126,7 +126,7 @@ impl Gpu {
             cycle_count: 0,
             interrupts: 0,
             updated: true
-        })
+        }))
     }
 
     pub fn gpu_step(&mut self, display: &mut dyn Display, cycles: u8) {

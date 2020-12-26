@@ -151,11 +151,7 @@
         </div>
         <script src="gbc_wasm.js"></script>
         <script>
-            var render_worker = new Worker('worker.js');
-            var canvas = document.getElementById('canvas');
-
-            var timer = new Date();
-
+            
             function raiseKeyUpEvent(key) {
                 document.dispatchEvent(new KeyboardEvent('keyup', {'key' : key}));
             }
@@ -163,14 +159,14 @@
             function raiseKeyDownEvent(key) {
                 document.dispatchEvent(new KeyboardEvent('keydown', {'key' : key}));
             }
+            var timer = new Date();
 
-            render_worker.onmessage = function (e) {
-                var ctx = canvas.getContext('2d');
-                ctx.putImageData(e.data.image, 0, 0);
+            function create_frame_image_data(data) {
                 var timer_new = new Date();
                 var fps = Math.round(1000 / (timer_new - timer));
                 document.getElementById("fps").innerText = fps;
                 timer = timer_new;
+                return new ImageData(Uint8ClampedArray.from(data), 160, 144);
             }
 
             var fileReader = new FileReader();
