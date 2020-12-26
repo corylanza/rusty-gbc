@@ -29,7 +29,7 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(rom_bytes: Vec<u8>, gpu: Gpu) -> Cpu {
+    pub fn new(rom_bytes: Vec<u8>, gpu: Box<Gpu>) -> Cpu {
         Cpu {
             mem: Mmu::new(rom_bytes, gpu),
             regs: Registers::new(),
@@ -56,7 +56,7 @@ impl Cpu {
     }
 
     fn handle_interrupts(&mut self) -> u8 {
-        // TODO interrupts take 20 cycles to handle (+ 4 if in halt mode)
+        //interrupts take 20 cycles to handle (+ 4 if in halt mode)
         let int_enable = self.mem.read(mmu::INTERUPTS_ENABLE);
         let int_request = self.mem.read(mmu::INTERUPT_REQUEST);
         for flag in vec![V_BLANK_INTERRUPT, STAT_INTERRUPT, TIMER_INTERRUPT, SERIAL_INTERRUPT, JOYPAD_INTERRUPT] {
@@ -149,6 +149,9 @@ impl Cpu {
             0x76 | 0x10 => {
                 if self.log {
                     println!("halting");
+                }
+                if opcode == 0x10 {
+                    return 4;
                 }
                 self.halted = true; 4 
             }

@@ -14,7 +14,9 @@ const VRAM_START: u16 = 0x8000;
 const VRAM_END: u16 = 0x9FFF;
 const ERAM_START: u16 = 0xA000;
 const ERAM_END: u16 = 0xBFFF;
-const WRAM_START: u16 = 0xC000;
+const WRAM_BANK_0_START: u16 = 0xC000;
+const WRAM_BANK_0_END: u16 = 0xCFFF;
+const WRAM_BANK_1_START: u16 = 0xD000;
 const WRAM_END: u16 = 0xDFFF;
 const ECHO_START: u16 = 0xE000;
 const ECHO_END: u16 = 0xFDFF;
@@ -30,33 +32,50 @@ pub const INTERUPT_REQUEST: u16 = 0xFF0F;
 
 pub struct Mmu {
     boot_rom: Vec<u8>,
-    pub gpu: Gpu,
+    pub gpu: Box<Gpu>,
     dma: Option<Dma>,
+    hdma: Hdma,
     mbc: Box<dyn MemoryBank>,
-    wram: Ram,
+    wram: Vec<Ram>,
     pub input: Input,
     timer: Timer,
     io: Ram,
     hram: Ram,
     interupt_switch: u8,
-    pub booting: bool
+    wram_select: u8,
+    pub booting: bool,
+    pub prepare_doublespeed: bool
 }
 
 impl Mmu {
-    pub fn new(rom_bytes: Vec<u8>, gpu: Gpu) -> Mmu {
+    pub fn new(rom_bytes: Vec<u8>, gpu: Box<Gpu>) -> Mmu {
+        if gpu.color_mode {
+            println!("Color");
+        }
+        
         let mbc = MemoryBank::new(rom_bytes);
+        let mut wram = Vec::new();
+        for _ in 0 .. if gpu.color_mode { 8 } else { 2 } {   
+            wram.push(Ram::new(0x2000));
+        }
+
+        let boot_rom = if gpu.color_mode { super::boot::load_cgb_rom() } else { super::boot::load_rom() };
+
         Mmu {
-            boot_rom: super::boot::load_rom(),
-            mbc: mbc,
-            gpu: gpu,
+            boot_rom,
+            mbc,
+            gpu,
             dma: None,
-            wram: Ram::new(0x2000),
+            hdma: Hdma::new(),
+            wram: wram,
             input: Input::new(),
             timer: Timer::new(),
             io: Ram::new(0x80),
             hram: Ram::new(0x7F),
             interupt_switch: 0,
-            booting: true
+            wram_select: 0,
+            booting: true,
+            prepare_doublespeed: false
         }
     }
 
@@ -72,17 +91,23 @@ impl Mmu {
             Some(ref dma) => self.dma_step(*dma, cycles),
             None => {}
         };
+        self.hdma_step();
     }
 
     #[allow(overlapping_patterns)]
     pub fn read(&self, address: u16) -> u8 {
+
         let output = match address {
+            // In color mode bios is $8FF bytes, leave $100-$14F unmapped so bios can read cartridge header
+            0 ..= 0xFF | 0x150 ..= 0x8FF if self.booting && self.gpu.color_mode => self.boot_rom[address as usize],
             0 ..= 0xFF if self.booting => self.boot_rom[address as usize],
             ROM_START ..= ROM_END => self.mbc.read_rom(address),
             VRAM_START ..= VRAM_END => self.gpu.read_from_vram(address - VRAM_START),
             ERAM_START ..= ERAM_END => self.mbc.read_ram(address - ERAM_START),
-            WRAM_START ..= WRAM_END => self.wram.read(address - WRAM_START),
-            ECHO_START ..= ECHO_END => self.wram.read(address - ECHO_START),
+            WRAM_BANK_0_START ..= WRAM_BANK_0_END => self.wram[0].read(address - WRAM_BANK_0_START),
+            WRAM_BANK_1_START ..= WRAM_END if self.gpu.color_mode => self.wram[self.wram_select as usize].read(address - WRAM_BANK_1_START),
+            WRAM_BANK_1_START ..= WRAM_END => self.wram[1].read(address - WRAM_BANK_1_START),
+            ECHO_START ..= ECHO_END => self.wram[((address - ECHO_START) / 0x2000) as usize].read(address - ECHO_START),
             OAM_START ..= OAM_END => self.gpu.read_from_oam(address - OAM_START),
             0xFEA0 ..= 0xFEFF => 0xFF, // Unusable returns this
             IO_START => self.input.read_joypad(),
@@ -105,6 +130,18 @@ impl Mmu {
             0xFF49 => self.gpu.get_obp1(),
             0xFF4A => self.gpu.get_wy(),
             0xFF4B => self.gpu.get_wx(),
+            0xFF4F if self.gpu.color_mode => self.gpu.get_vram_bank(),
+            // 0xFF50 => boot rom enabled
+            0xFF51 if self.gpu.color_mode => 0xFF, // HDMA1 High Source byte (write only),
+            0xFF52 if self.gpu.color_mode => 0xFF, // HDMA2 Low Source byte (write only),
+            0xFF53 if self.gpu.color_mode => 0xFF, // HDMA3 High dest byte (write only),
+            0xFF54 if self.gpu.color_mode => 0xFF, // HDMA4 Low dest byte (write only),
+            0xFF55 if self.gpu.color_mode => 0xFF, // HDMA5 Length/mode/start (write only),
+            0xFF68 if self.gpu.color_mode => self.gpu.get_color_bg_palette_idx(),//cgb bgpi
+            0xFF69 if self.gpu.color_mode => self.gpu.get_color_bg_palette(),//cgb pgpd
+            0xFF6A if self.gpu.color_mode => self.gpu.get_color_sprite_palette_idx(), //cgb spi
+            0xFF6B if self.gpu.color_mode => self.gpu.get_color_sprite_palette(), //cgb spd
+            0xFF70 if self.gpu.color_mode => self.wram_select | 0b11111000, // TODO verify
             IO_START ..= IO_END => self.io.read(address - IO_START),
             HRAM_START ..= HRAM_END => self.hram.read(address - HRAM_START),
             INTERUPTS_ENABLE => self.interupt_switch
@@ -128,14 +165,17 @@ impl Mmu {
         if self.booting && address == 0xFF50 {
             self.booting = false;
             self.mbc.print_metadata();
+            println!("boot complete");
         }
 
         match address {
             ROM_START ..= ROM_END => self.mbc.write_rom(address, value),
             VRAM_START ..= VRAM_END => self.gpu.write_to_vram(address - VRAM_START, value),
             ERAM_START ..= ERAM_END => self.mbc.write_ram(address - ERAM_START, value),
-            WRAM_START ..= WRAM_END => self.wram.write(address - WRAM_START, value),
-            ECHO_START ..= ECHO_END => self.wram.write(address - ECHO_START, value),
+            WRAM_BANK_0_START ..= WRAM_BANK_0_END => self.wram[0].write(address - WRAM_BANK_0_START, value),
+            WRAM_BANK_1_START ..= WRAM_END if self.gpu.color_mode => self.wram[self.wram_select as usize].write(address - WRAM_BANK_1_START, value),
+            WRAM_BANK_1_START ..= WRAM_END => self.wram[1].write(address - WRAM_BANK_1_START, value),
+            ECHO_START ..= ECHO_END => self.wram[((address - ECHO_START) / 0x2000) as usize].write(address - ECHO_START, value),
             OAM_START ..= OAM_END => self.gpu.write_to_oam(address - OAM_START, value),
             0xFEA0 ..= 0xFEFF => { /* Unusable */} ,
             0xFF00 => self.input.write_joypad(value),
@@ -157,15 +197,20 @@ impl Mmu {
             0xFF49 => self.gpu.set_obp1(value),
             0xFF4A => self.gpu.set_wy(value),
             0xFF4B => self.gpu.set_wx(value),
-            // 0xFF51 cgb hdma1
-            // 0xFF52 cgb hdma2
-            // 0xFF53 cgb hdma3
-            // 0xFF54 cgb hdma4
-            // 0xFF55 cgb hdma5
-            // 0xFF68 cgb bgpi
-            // 0xFF69 cgb pgpd
-            // 0xFF6A cgb spi
-            // 0xFF6a cgb spd
+            0xFF4D if self.gpu.color_mode => {},//panic!("Double speed not implemented"),
+            0xFF4F if self.gpu.color_mode => self.gpu.select_vram_bank(value),
+            0xFF51 if self.gpu.color_mode => self.hdma.source = u16::from_be_bytes([value, (self.hdma.source & 0xFF00) as u8]), // HDMA1 High Source byte (write only),
+            0xFF52 if self.gpu.color_mode => self.hdma.source = u16::from_be_bytes([(self.hdma.source >> 8) as u8, value & 0b11110000]), // HDMA2 Low Source byte (write only) lower 4 bits ignored,
+            0xFF53 if self.gpu.color_mode => self.hdma.destination = u16::from_be_bytes([value, (self.hdma.destination & 0b0001111100000000) as u8]), // HDMA3 High dest byte (write only) upper 3 bits ignored,
+            0xFF54 if self.gpu.color_mode => self.hdma.destination = u16::from_be_bytes([(self.hdma.destination >> 8) as u8, value & 0b11110000]), // HDMA4 Low dest byte (write only) lower 4 bits ignored,
+            0xFF55 if self.gpu.color_mode => self.hdma.start(value), // HDMA5 Length/mode/start (write only),
+            0xFF68 if self.gpu.color_mode => self.gpu.set_color_bg_palette_idx(value),//cgb bgpi
+            0xFF69 if self.gpu.color_mode => self.gpu.set_color_bg_palette(value),//cgb pgpd
+            0xFF6A if self.gpu.color_mode => self.gpu.set_color_sprite_palette_idx(value), //cgb spi
+            0xFF6B if self.gpu.color_mode => self.gpu.set_color_sprite_palette(value), //cgb spd
+            0xFF70 if self.gpu.color_mode => {
+                self.wram_select = if value == 0 { 1 } else { value & 0b00000111 };
+            },
             IO_START ..= IO_END => self.io.write(address - IO_START, value),
             HRAM_START ..= HRAM_END => self.hram.write(address - HRAM_START, value),
             INTERUPTS_ENABLE => self.interupt_switch = value,
@@ -206,6 +251,17 @@ impl Mmu {
         }
         self.dma = Some(dma);
     }
+
+    fn hdma_step(&mut self) {
+        if self.gpu.color_mode && self.hdma.active() {
+            //println!("transferred");
+            for i in 0 .. self.hdma.remaining_len() {
+                let val = self.read(self.hdma.source + i);
+                self.write(self.hdma.destination + i, val);
+            }
+            self.hdma.value = 0xFF;
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
@@ -223,6 +279,42 @@ impl Dma {
             source: (value as u16) << 8,
             address: 0,
             started: false
+        }
+    }
+}
+
+struct Hdma {
+    value: u8,
+    source: u16,
+    destination: u16
+}
+
+impl Hdma {
+    fn new() -> Self {
+        Hdma {
+            value: 0,
+            source: 0,
+            destination: 0
+        }
+    }
+
+    fn start(&mut self, value: u8) {
+        self.value = value;
+        let bytes_count = self.remaining_len();
+        let h_blank_mode = value & 0b10000000 > 1;
+        //println!("DMA started from {:04X} to {:04X}, {} bytes, H-blank mode {}", self.source, self.destination, bytes_count, h_blank_mode);
+    }
+
+    fn active(&self) -> bool {
+        self.value != 0xFF
+    }
+
+    fn remaining_len(&mut self) -> u16 {
+        //the lower 7 bits of which specify the Transfer Length (divided by 10h, minus 1)
+        if self.value == 0xFF {
+            0
+        } else {
+            ((self.value & 0b011111111) as u16 + 1) * 0x10
         }
     }
 }
