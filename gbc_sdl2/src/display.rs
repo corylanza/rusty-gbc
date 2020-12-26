@@ -19,6 +19,11 @@ impl SdlDisplay<'_> {
             texture: tex
         }
     }
+
+    pub fn set_title(&mut self, title: String) {
+        let t: &str = &(title.to_owned())[..];
+        self.canvas.window_mut().set_title(t).unwrap();
+    }
 }
 
 impl Display for SdlDisplay<'_> {

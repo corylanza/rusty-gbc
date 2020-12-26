@@ -12,7 +12,7 @@ use sdl2::event::Event;
 
 use std::fs::File;
 use std::io::prelude::*;
-//use std::time::Instant;
+use std::time::Instant;
 
 mod display;
 use display::SdlDisplay;
@@ -57,7 +57,8 @@ fn main() -> Result<(), String> {
         let mut buffer = Vec::<u8>::new();
         file.read_to_end(&mut buffer).unwrap();
         
-        let gpu = Gpu::new().unwrap();
+        let color_mode = buffer[0x143] & 0x80 == 0x80 || buffer[0x143] & 0xC0 == 0xC0;
+        let gpu = Gpu::new(color_mode).unwrap();
         let mut gbc = Cpu::new(buffer, gpu);
 
         if args.len() > 2 {
@@ -66,6 +67,9 @@ fn main() -> Result<(), String> {
         }
         
         let mut event_pump = sdl_context.event_pump()?;
+
+        let mut timer = Instant::now();
+        let mut framecount = 0;
 
         'main: loop {
             for event in event_pump.poll_iter() {
@@ -133,13 +137,14 @@ fn main() -> Result<(), String> {
             }
             
             gbc.run_one_frame(&mut display);
+            framecount += 1;
             // To reintroduce fps count use below
-            // let elapsed = self.timer.elapsed().as_millis();
-            // if elapsed > 1000 {
-            //     self.timer = Instant::now();
-            //     println!("fps {}", self.framecount as f32 / (elapsed as f32 / 1000.0));
-            //     self.framecount = 0;
-            // }
+            let elapsed = timer.elapsed().as_millis();
+            if elapsed > 1000 {
+                timer = Instant::now();
+                display.set_title(format!("Rusty GBC - {:.0} fps", framecount as f32 / (elapsed as f32 / 1000.0)));
+                framecount = 0;
+            }
         }
         Ok(())
     } else {

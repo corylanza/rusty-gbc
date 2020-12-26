@@ -21,9 +21,10 @@ const BLACK: Color = Color::rgb(0x00, 0x00, 0x00);
 const RED: Color = Color::rgb(0xFF, 0x00, 0x00);
 
 pub struct Gpu {
-    vram: [u8; 0x8000],
+    vram: [[u8; 0x8000]; 2],
+    vram_bank_1_selected: bool,
     oam: [u8; 0xA0],
-    tile_set: [Tile; 384],
+    tile_set: [[Tile; 384]; 2],
     sprites: [Option<Sprite>; 10],
     // LCD Control
     lcd_enable: bool,
@@ -55,6 +56,13 @@ pub struct Gpu {
     bgp: u8,
     obp0: u8,
     obp1: u8,
+    pub color_mode: bool,
+    color_bg_palette_index: u8,
+    color_bg_palette_auto_increment: bool,
+    color_bg_palettes: [u8; 0x40],
+    color_obj_palette_index: u8,
+    color_obj_palette_auto_increment: bool,
+    color_obj_palettes: [u8; 0x40],
     cycle_count: usize,
     pub interrupts: u8,
     updated: bool
@@ -74,11 +82,12 @@ fn empty_tile() -> Tile {
 }
 
 impl Gpu {
-    pub fn new() -> Result<Self, String> {
-        Ok(Gpu {
+    pub fn new(color_mode: bool) -> Result<Box<Gpu>, String> {
+        Ok(Box::new(Gpu {
             oam: [0; 0xA0],
-            vram: [0; 0x8000],
-            tile_set: [empty_tile(); 384],
+            vram: [[0; 0x8000]; 2],
+            vram_bank_1_selected: false,
+            tile_set: [[empty_tile(); 384]; 2],
             sprites: Default::default(),
             // LCD Control
             lcd_enable: false,
@@ -107,10 +116,17 @@ impl Gpu {
             bgp: 0,
             obp0: 0,
             obp1: 0,
+            color_mode,
+            color_bg_palette_index: 0,
+            color_bg_palette_auto_increment: false,
+            color_bg_palettes: [0; 0x40],
+            color_obj_palette_index: 0,
+            color_obj_palette_auto_increment: false,
+            color_obj_palettes: [0; 0x40],
             cycle_count: 0,
             interrupts: 0,
             updated: true
-        })
+        }))
     }
 
     pub fn gpu_step(&mut self, display: &mut dyn Display, cycles: u8) {
@@ -280,21 +296,89 @@ impl Gpu {
     pub fn set_obp1(&mut self, value: u8) { self.obp1 = value; self.updated() }
     pub fn get_obp1(&self) -> u8 { self.obp1 }
 
+    pub fn set_color_bg_palette_idx(&mut self, value: u8) {
+        self.color_bg_palette_index = value & 0b00111111;
+        self.color_bg_palette_auto_increment = value & 0b10000000 > 0;
+        self.updated()
+    }
+    pub fn get_color_bg_palette_idx(&self) -> u8 {
+        let mut val = 0b01000000 | self.color_bg_palette_index;
+        if self.color_bg_palette_auto_increment {
+            val |= 0b10000000;
+        }
+        val
+    }
+    pub fn set_color_bg_palette(&mut self, value: u8) {
+        self.color_bg_palettes[self.color_bg_palette_index as usize % 0x40] = value;
+        if self.color_bg_palette_auto_increment {
+            self.color_bg_palette_index += 1;
+        }
+        self.updated()
+    }
+
+    pub fn get_color_bg_palette(&self) -> u8 {
+        self.color_bg_palettes[self.color_bg_palette_index as usize % 0x40]
+    }
+
+    pub fn set_color_sprite_palette_idx(&mut self, value: u8) {
+        self.color_obj_palette_index = value & 0b00111111;
+        self.color_obj_palette_auto_increment = value & 0b10000000 > 0;
+        self.updated()
+    }
+
+    pub fn get_color_sprite_palette_idx(&self) -> u8 {
+        let mut val = 0b01000000 | self.color_obj_palette_index;
+        if self.color_obj_palette_auto_increment {
+            val |= 0b10000000;
+        }
+        val
+    }
+
+    pub fn set_color_sprite_palette(&mut self, value: u8) {
+        //let is_byte_1 = self.color_obj_palette_index % 2 == 0;
+        self.color_obj_palettes[self.color_obj_palette_index as usize] = value;
+        if self.color_obj_palette_auto_increment {
+            self.color_obj_palette_index = (self.color_obj_palette_index + 1) % 0x40; 
+        }
+        self.updated()
+    }
+
+    pub fn get_color_sprite_palette(&self) -> u8 {
+        self.color_obj_palettes[self.color_obj_palette_index as usize]
+    }
+
+    pub fn select_vram_bank(&mut self, value: u8) {
+        if self.color_mode {
+            self.vram_bank_1_selected = value & 1 > 0;
+        }
+    }
+
+    pub fn get_vram_bank(&self) -> u8 {
+        if self.vram_bank_1_selected || !self.color_mode {
+            0b11111111
+        } else {
+            0b11111110
+        }
+    }
+
 
     fn get_color(& self, pixel_x: u8, pixel_y: u8) -> Color {
-        let bg_or_win_color = // If the window is enabled and wx and wy are less than x and y draw window
+        let reverse_x_if = |condition: bool, x: u8| if condition { 7 - x } else { x };
+        let reverse_y_if = |condition: bool, y: u8| if condition { 7 - y } else { y };
+
+        let (bg_or_win_color, bg_attributes) = // If the window is enabled and wx and wy are less than x and y draw window
             if self.window_enable && pixel_x + WINDOW_X_SHIFT >= self.wx && self.window_internal_line_counter.is_some() { // pixel_y >= self.wy {
                 let (window_x, window_y) = ((pixel_x + WINDOW_X_SHIFT) - self.wx, self.window_internal_line_counter.unwrap());
-                let tile = self.get_tile_at(self.window_tile_map, window_x / 8, window_y / 8);
-                tile[(window_y % 8) as usize][(window_x % 8) as usize]
+                let (tile, attributes) = self.get_tile_at(self.window_tile_map, window_x / 8, window_y / 8);
+                (tile[reverse_y_if(attributes & 0b01000000 > 0, window_y % 8) as usize][reverse_x_if(attributes & 0b00100000 > 0, window_x % 8) as usize], attributes)
             } else
             // TODO window priority works differently for CGB, on DMG works as enable bg
             // If the background is enabled draw the background
-            if self.bg_window_priority {
+            if self.color_mode || self.bg_window_priority {
                 let (scrolled_x, scrolled_y) = (pixel_x.wrapping_add(self.scx), pixel_y.wrapping_add(self.scy));
-                let tile = self.get_tile_at(self.bg_tile_map_select, scrolled_x / 8, scrolled_y / 8);
-                tile[(scrolled_y % 8)as usize][(scrolled_x % 8) as usize]
-            } else { 0 };
+                let (tile, attributes) = self.get_tile_at(self.bg_tile_map_select, scrolled_x / 8, scrolled_y / 8);
+                (tile[reverse_y_if(attributes & 0b01000000 > 0, scrolled_y % 8) as usize][reverse_x_if(attributes & 0b00100000 > 0, scrolled_x % 8) as usize], attributes)
+            } else { (0, 0) };
 
         // Compare x to all 10 sprites, if any are visible draw that scanline of the sprite
         for sprite in self.sprites.iter().filter(|x| x.is_some()).map(|x| x.as_ref().unwrap()) {
@@ -307,25 +391,25 @@ impl Gpu {
                 (true, 0..=7, 0..=15) => {
                     if sprite.flags & SPRITE_X_FLIP == SPRITE_X_FLIP { sprite_x = 15 - sprite_x }
                     if sprite.flags & SPRITE_Y_FLIP == SPRITE_Y_FLIP { sprite_y = 15 - sprite_y }
+                    let tile_vram_bank = if self.color_mode && sprite.flags & 0b1000 > 0 { 1 } else { 0 };
                     let tile = match sprite_y {
                         // In 8x16 mode, the lower bit of the tile number is ignored. IE: the upper 8x8 tile is "NN AND FEh", and the lower 8x8 tile is "NN OR 01h"
-                        0..=7 => self.get_sprite_tile(sprite.tile_number & 0xFE),
-                        8..=15 => self.get_sprite_tile(sprite.tile_number | 0x01),
+                        0..=7 => self.get_sprite_tile(tile_vram_bank, sprite.tile_number & 0xFE),
+                        8..=15 => self.get_sprite_tile(tile_vram_bank, sprite.tile_number | 0x01),
                         _ => panic!()
                     };
-                    match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[(sprite_y % 8) as usize][(sprite_x % 8) as usize]) {
-                        Some(color) => {
-                            return color
-                        },
+                    match self.get_sprite_color(&sprite, tile[(sprite_y % 8) as usize][(sprite_x % 8) as usize]) {
+                        Some(color) => return color,
                         None => {}
                     }
                 }
                 (false, 0..=7, 0..=7) => {
                     if sprite.flags & SPRITE_X_FLIP == SPRITE_X_FLIP { sprite_x = 7 - sprite_x }
                     if sprite.flags & SPRITE_Y_FLIP == SPRITE_Y_FLIP { sprite_y = 7 - sprite_y }
-                    let tile = self.get_sprite_tile(sprite.tile_number);
+                    let tile_vram_bank = if self.color_mode && sprite.flags & 0b1000 > 0 { 1 } else { 0 };
+                    let tile = self.get_sprite_tile(tile_vram_bank, sprite.tile_number);
                     if sprite.flags & SPRITE_OBJ_TO_BG_PRIORITY == 0 || bg_or_win_color == 0  {
-                        match self.get_sprite_color(sprite.flags & SPRITE_PALETTE_NUM > 0, tile[sprite_y as usize][sprite_x as usize]) {
+                        match self.get_sprite_color(&sprite, tile[sprite_y as usize][sprite_x as usize]) {
                             Some(color) => return color,
                             None => {}
                         }                
@@ -335,7 +419,7 @@ impl Gpu {
             }
         }
         
-        self.get_bg_color(bg_or_win_color)
+        self.get_bg_color(bg_or_win_color, bg_attributes & 0b00000111)
     }
 
     fn draw_scanline(&mut self, display: &mut dyn Display) {
@@ -348,43 +432,23 @@ impl Gpu {
         display.update_line_from_buffer(buffer, pixel_y);
     }
 
-    // pub fn render_background(&mut self) {
-    //     self.background_canvas.set_draw_color(Color::RGB(0, 0xFF, 0xFF));
-    //     self.background_canvas.clear();
-    //     for tile_y in 0..32 {
-    //         for tile_x in 0..32 {
-    //             let tile = self.get_bg_tile_at(tile_y, tile_x);
-    //             render_tile(&mut self.background_canvas, tile, tile_x as usize, tile_y as usize);
-    //         }
-    //     }
-    //     self.background_canvas.set_draw_color(Color::RGB(0, 0, 0));
-    //     self.background_canvas.draw_rect(Rect::new(self.scx as i32 * SCALE as i32, self.scy as i32 * SCALE as i32, SCREEN_WIDTH as u32 * SCALE as u32, SCREEN_HEIGHT as u32 * SCALE as u32)).unwrap();
-    //     self.background_canvas.present();
-    // }
-
-    // pub fn render_tileset(&mut self, tileset_canvas: &mut WindowCanvas) {
-    //     tileset_canvas.set_draw_color(Color::RGB(0xFF, 0xFF, 0xFF));
-    //     tileset_canvas.clear();
-    //     for tile in 0..384 {
-    //         render_tile(tileset_canvas, self.tile_set[tile], tile % 16, tile / 16, 2);
-    //     }
-    //     tileset_canvas.present();
-    // }
-
-    fn get_tile_at(&self, tilemap: bool, x: u8, y: u8) -> Tile {
+    fn get_tile_at(&self, tilemap: bool, x: u8, y: u8) -> (Tile, u8) {
         let address = y as u16 * 32 + x as u16;
-        let tile_id = if tilemap {
-            self.vram[(address + 0x1C00) as usize]
+        let (tile_id, tile_attributes) = if tilemap {
+            (self.vram[0][(address + 0x1C00) as usize],
+             self.vram[1][(address + 0x1C00) as usize])
         } else {
-            self.vram[(address + 0x1800) as usize]
+            (self.vram[0][(address + 0x1800) as usize],
+             self.vram[1][(address + 0x1800) as usize])
         };
 
-        if self.bg_window_tile_data {
-            self.tile_set[tile_id as usize]
+        let tile_vram_bank = if tile_attributes & 0b1000 > 0 { 1 } else { 0 };
+        (if self.bg_window_tile_data {
+            self.tile_set[tile_vram_bank as usize][tile_id as usize]
         } else {
             let address = (0x100 as i16) + i8::from_le_bytes([tile_id]) as i16;
-            self.tile_set[address as usize]
-        }
+            self.tile_set[tile_vram_bank as usize][address as usize]
+        }, tile_attributes)
     }
 
     fn get_sprites_for_current_scanline(&mut self) {
@@ -404,8 +468,8 @@ impl Gpu {
         }
     }
 
-    fn get_sprite_tile(&self, tile_number: u8) -> Tile {
-        self.tile_set[tile_number as usize]
+    fn get_sprite_tile(&self, tile_vram_bank: u8, tile_number: u8) -> Tile {
+        self.tile_set[tile_vram_bank as usize][tile_number as usize]
     }
 
     fn get_sprite(&self, n: u8) -> Sprite {
@@ -426,45 +490,74 @@ impl Gpu {
         //     // cannot access VRAM during LCD Transfer
         //     return;
         // }
-        self.vram[address as usize] = value;
+        let vram_bank = if self.vram_bank_1_selected { 1 } else { 0 };
+
+        self.vram[vram_bank][address as usize] = value;
+            
         if address >= 0x1800 {
             return; 
         }
 
         let index: usize = (address & 0xFFFE) as usize;
-        let byte1 = self.vram[index];
-        let byte2 = self.vram[index + 1];
+        let byte1 = self.vram[vram_bank][index];
+        let byte2 = self.vram[vram_bank][index + 1];
         let tile: usize = (index / 16) as usize;
         let row: usize = ((index % 16) / 2) as usize;
 
         for pixel in 0..8 {
             let mask = 1 << (7 - pixel);
             let color = ((byte2 & mask) >> (7 - pixel)) << 1 | ((byte1 & mask) >> (7 - pixel));
-            self.tile_set[tile][row][pixel] = color;
+            self.tile_set[vram_bank][tile][row][pixel] = color;
         }
     }
 
-    fn get_sprite_color(&self, useobp1: bool, value: u8) -> Option<Color> {
-        let palette = if useobp1 { self.obp1 } else { self.obp0 };
+    fn get_sprite_color(&self, sprite: &Sprite, value: u8) -> Option<Color> {
         if value == 0 {
             return None;
         }
-        match (palette >> (2 * value)) & 0b11 {
-            0 => Some(WHITE),
-            1 => Some(LIGHT_GRAY),
-            2 => Some(DARK_GRAY),
-            3 => Some(BLACK),
-            _ => Some(RED)
+
+        if self.color_mode {
+            let to_8_bit_color = |c: u8| (c << 3) | (c >> 2);
+            let palette_num = sprite.flags & 0b00000111;
+            let b0: u8 = self.color_obj_palettes[((palette_num * 8) + value * 2) as usize];
+            let b1: u8 = self.color_obj_palettes[((palette_num * 8) + value * 2) as usize + 1];
+            let color_bytes: u16 = u16::from_le_bytes([b0, b1]);
+            Some(Color::rgb(
+                to_8_bit_color((color_bytes & 0b11111) as u8),
+                to_8_bit_color(((color_bytes & 0b1111100000) >> 5) as u8),
+                to_8_bit_color(((color_bytes & 0b111110000000000) >> 10) as u8)
+            ))
+        } else {
+            let palette = if sprite.flags & SPRITE_PALETTE_NUM > 0 { self.obp1 } else { self.obp0 };
+            match (palette >> (2 * value)) & 0b11 {
+                0 => Some(WHITE),
+                1 => Some(LIGHT_GRAY),
+                2 => Some(DARK_GRAY),
+                3 => Some(BLACK),
+                _ => Some(RED)
+            }
         }
     }
 
-    fn get_bg_color(&self, value: u8) -> Color {
-        match (self.bgp >> (2 * value)) & 0b11 {
-            0 => WHITE,
-            1 => LIGHT_GRAY,
-            2 => DARK_GRAY,
-            3 => BLACK,
-            _ => RED
+    fn get_bg_color(&self, value: u8, palette_num: u8) -> Color {
+        if self.color_mode {
+            let to_8_bit_color = |c: u8| (c << 3) | (c >> 2);
+            let b0: u8 = self.color_bg_palettes[((palette_num * 8) + value * 2) as usize];
+            let b1: u8 = self.color_bg_palettes[((palette_num * 8) + value * 2) as usize + 1];
+            let color_bytes: u16 = u16::from_le_bytes([b0, b1]);
+            Color::rgb(
+                to_8_bit_color((color_bytes & 0b11111) as u8),
+                to_8_bit_color(((color_bytes & 0b1111100000) >> 5) as u8),
+                to_8_bit_color(((color_bytes & 0b111110000000000) >> 10) as u8)
+            )
+        } else {
+            match (self.bgp >> (2 * value)) & 0b11 {
+                0 => WHITE,
+                1 => LIGHT_GRAY,
+                2 => DARK_GRAY,
+                3 => BLACK,
+                _ => RED
+            }
         }
     }
 
@@ -473,7 +566,8 @@ impl Gpu {
             // cannot access VRAM during LCD Transfer
             return 0xFF;
         }
-        self.vram[address as usize]
+        let vram_bank = if self.vram_bank_1_selected { 1 } else { 0 };
+        self.vram[vram_bank][address as usize]
     }
 
     pub fn write_to_oam(&mut self, address: u16, value: u8) {

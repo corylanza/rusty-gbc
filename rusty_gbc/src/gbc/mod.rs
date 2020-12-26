@@ -29,7 +29,7 @@ pub struct Cpu {
 }
 
 impl Cpu {
-    pub fn new(rom_bytes: Vec<u8>, gpu: Gpu) -> Cpu {
+    pub fn new(rom_bytes: Vec<u8>, gpu: Box<Gpu>) -> Cpu {
         Cpu {
             mem: Mmu::new(rom_bytes, gpu),
             regs: Registers::new(),
@@ -149,6 +149,9 @@ impl Cpu {
             0x76 | 0x10 => {
                 if self.log {
                     println!("halting");
+                }
+                if opcode == 0x10 {
+                    return 4;
                 }
                 self.halted = true; 4 
             }
