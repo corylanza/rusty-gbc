@@ -1,0 +1,24 @@
+name: Update Personal Site
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  copy-file:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: Pushes test folder
+      uses: crykn/copy_folder_to_another_repo_action@v1.0.5
+      env:
+        API_TOKEN_GITHUB: ${{ secrets.API_TOKEN_GITHUB }}
+      with:
+        source_folder: 'docs'
+        destination_repo: 'corylanza/corylanza.github.io'
+        destination_folder: 'Core/wwwroot/rusty-gbc'
+        user_email: 'corylanza@gmail.com'
+        user_name: 'corylanza'
+        commit_msg: 'Automatic update from rusty-gbc repo'
