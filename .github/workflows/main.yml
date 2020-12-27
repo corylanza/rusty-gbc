@@ -13,7 +13,7 @@ jobs:
       with:
         personal_token: ${{ secrets.PERSONAL_TOKEN }}
         src_path: docs/.
-        dst_path: /Core/wwwroot/
+        dst_path: /Core/wwwroot/rusty-gbc/
         clean: true
         dst_owner: corylanza
         dst_repo_name: corylanza.github.io
