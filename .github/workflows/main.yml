@@ -12,14 +12,13 @@ jobs:
       uses: andstor/copycat-action@v3
       with:
         personal_token: ${{ secrets.PERSONAL_TOKEN }}
-        src_path: /docs/.
-        dst_path: /Core/wwwroot/rusty-gbc/
+        src_path: docs/.
+        dst_path: /Core/wwwroot/
+        clean: true
         dst_owner: corylanza
         dst_repo_name: corylanza.github.io
         dst_branch: master
         src_branch: master
-        src_wiki: false
-        dst_wiki: false
         username: corylanza
         email: corylanza@gmail.com
         commit_message: 'Automatic update from rusty-gbc repo'
