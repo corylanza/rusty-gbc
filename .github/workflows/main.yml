@@ -8,16 +8,21 @@ jobs:
   copy:
     runs-on: ubuntu-latest
     steps:
+    # uses GitHub's checkout action to checkout code form the master branch
+    - uses: actions/checkout@v2
+    - run: cd gbc_wasm
+    - run: cargo web install -f cargo-web
+    - run: cargo web deploy --release --target=wasm32-unknown-unknown      
     - name: Copycat
       uses: andstor/copycat-action@v3
       with:
         personal_token: ${{ secrets.PERSONAL_TOKEN }}
-        src_path: docs/.
-        dst_path: /Core/wwwroot/rusty-gbc/
+        src_path: target/deploy/.
+        dst_path: /Core/wwwroot/rusty-gbc-dist/
         clean: true
         dst_owner: corylanza
         dst_repo_name: corylanza.github.io
-        dst_branch: master
+        dst_branch: rust-test
         src_branch: master
         username: corylanza
         email: corylanza@gmail.com
