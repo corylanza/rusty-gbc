@@ -5,13 +5,13 @@ on:
     branches: [ master ]
 
 jobs:
-  copy:
+  build and deplpy:
     runs-on: ubuntu-latest
     steps:
     # uses GitHub's checkout action to checkout code form the master branch
     - uses: actions/checkout@v2
     - run: cd gbc_wasm
-    - run: cargo web install -f cargo-web
+    - run: cargo install -f cargo-web
     - run: cargo web deploy --release --target=wasm32-unknown-unknown      
     - name: Copycat
       uses: andstor/copycat-action@v3
