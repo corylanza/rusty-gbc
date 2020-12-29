@@ -19,7 +19,7 @@ jobs:
       uses: andstor/copycat-action@v3
       with:
         personal_token: ${{ secrets.PERSONAL_TOKEN }}
-        src_path: target/deploy/.
+        src_path: rusty-gbc/target/deploy/.
         dst_path: /Core/wwwroot/rusty-gbc-dist/
         clean: true
         dst_owner: corylanza
