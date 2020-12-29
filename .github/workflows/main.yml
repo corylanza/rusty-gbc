@@ -10,9 +10,14 @@ jobs:
     steps:
     # uses GitHub's checkout action to checkout code form the master branch
     - uses: actions/checkout@v2
-    - run: cd gbc_wasm
+    - uses: actions-rs/toolchain@v1
+      with:
+        toolchain: nightly
+        target: wasm32-unknown-unknown
+        override: true
     - run: cargo install -f cargo-web
-    - run: cargo web deploy
+    - run: cd gbc_wasm
+    - run: cargo web deploy --release --all-features --target=wasm32-unknown-unknown      
     - name: Copycat
       uses: andstor/copycat-action@v3
       with:
