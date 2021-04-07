@@ -2,7 +2,7 @@ extern crate rusty_gbc;
 
 use rusty_gbc::gbc::Cpu;
 use rusty_gbc::debugger::Debugger;
-use rusty_gbc::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use rusty_gbc::{SCREEN_HEIGHT, SCREEN_WIDTH, PIXEL_BUFFER_SIZE};
 use rusty_gbc::gbc::gpu::Gpu;
 use std::env;
 

@@ -4,6 +4,7 @@ pub mod debugger;
 pub const SCREEN_WIDTH: u8 = 160;
 pub const SCREEN_HEIGHT: u8 = 144;
 pub const BYTES_PER_PIXEL: u8 = 4; // RGBA8888
+pub const PIXEL_BUFFER_SIZE: usize =  SCREEN_WIDTH as usize * SCREEN_HEIGHT as usize * BYTES_PER_PIXEL as usize;
 
 #[derive(Default, Copy, Clone)]
 pub struct Color {
@@ -23,6 +24,6 @@ impl Color {
 }
 
 pub trait Display {
-    fn render_frame(&mut self);
+    fn render_frame(&mut self, buffer: &mut [u8; PIXEL_BUFFER_SIZE as usize]);
     fn update_line_from_buffer(&mut self, buffer: [Color; SCREEN_WIDTH as usize], line: u8);
 }

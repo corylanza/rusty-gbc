@@ -9,7 +9,7 @@ mod registers;
 pub use mmu::Mmu;
 pub use registers::Registers;
 use super::debugger::Debugger;
-use crate::gbc::gpu::Gpu;
+pub use crate::gbc::gpu::Gpu;
 use crate::Display;
 
 const V_BLANK_INTERRUPT: u8 = 1;

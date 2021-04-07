@@ -1,4 +1,4 @@
-use super::rusty_gbc::{Display, Color, SCREEN_WIDTH, SCREEN_HEIGHT, BYTES_PER_PIXEL};
+use super::rusty_gbc::{Display, Color, SCREEN_WIDTH, SCREEN_HEIGHT, BYTES_PER_PIXEL, PIXEL_BUFFER_SIZE};
 use sdl2::render::{Texture, TextureCreator, WindowCanvas};
 use sdl2::video::WindowContext;
 
@@ -27,8 +27,33 @@ impl SdlDisplay<'_> {
 }
 
 impl Display for SdlDisplay<'_> {
-    fn render_frame(&mut self) {
-        self.canvas.copy(&self.texture, None, None).unwrap();
+    fn render_frame(&mut self, buffer: &mut [u8; PIXEL_BUFFER_SIZE as usize]) {
+        let surface = sdl2::surface::Surface::from_data(
+            buffer,
+            SCREEN_WIDTH as u32,
+            SCREEN_HEIGHT as u32,
+            (SCREEN_WIDTH as u32 * BYTES_PER_PIXEL as u32) as u32,
+            sdl2::pixels::PixelFormatEnum::BGR888,
+        ).unwrap();
+        let texture_creator = self.canvas.texture_creator();
+        let texture = texture_creator.create_texture_from_surface(&surface).unwrap();
+
+        self.canvas.copy(&texture, None, None).unwrap();
+
+
+
+
+        // self.texture.with_lock(None, |sdl_buffer: &mut [u8], pitch: usize| {
+        //     for idx in 0 .. PIXEL_BUFFER_SIZE {
+        //         if idx + 3 < sdl_buffer.len() && idx + 3 < buffer.len() {
+        //             sdl_buffer[idx] = buffer[idx];
+        //             sdl_buffer[idx + 1] = buffer[idx + 1];
+        //             sdl_buffer[idx + 2] = buffer[idx + 2];
+        //             sdl_buffer[idx + 3] = 0xFF;
+        //         }
+        //     }
+        // }).unwrap();
+        // self.canvas.copy(&self.texture, None, None).unwrap();
         self.canvas.present();
     }
 

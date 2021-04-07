@@ -1,5 +1,5 @@
 use crate::{Color, Display};
-use crate::{SCREEN_HEIGHT, SCREEN_WIDTH};
+use crate::{SCREEN_HEIGHT, SCREEN_WIDTH, PIXEL_BUFFER_SIZE};
 use super::{V_BLANK_INTERRUPT, STAT_INTERRUPT};
 
 const SPRITE_OBJ_TO_BG_PRIORITY: u8 = 0b10000000; // (0=OBJ Above BG, 1=OBJ Behind BG color 1-3) //(Used for both BG and Window. BG color 0 is always behind OBJ)
@@ -21,6 +21,7 @@ const BLACK: Color = Color::rgb(0x00, 0x00, 0x00);
 const RED: Color = Color::rgb(0xFF, 0x00, 0x00);
 
 pub struct Gpu {
+    pixel_buffer: [u8; PIXEL_BUFFER_SIZE],
     vram: [[u8; 0x8000]; 2],
     vram_bank_1_selected: bool,
     oam: [u8; 0xA0],
@@ -70,7 +71,7 @@ pub struct Gpu {
 
 type Tile = [[u8; 8]; 8];
 
-struct Sprite {
+pub struct Sprite {
     y: u8,
     x: u8,
     tile_number: u8,
@@ -84,6 +85,7 @@ fn empty_tile() -> Tile {
 impl Gpu {
     pub fn new(color_mode: bool) -> Result<Box<Gpu>, String> {
         Ok(Box::new(Gpu {
+            pixel_buffer: [0; PIXEL_BUFFER_SIZE],
             oam: [0; 0xA0],
             vram: [[0; 0x8000]; 2],
             vram_bank_1_selected: false,
@@ -191,7 +193,7 @@ impl Gpu {
                 self.window_internal_line_counter = None;
 
                 if self.updated {
-                    display.render_frame();
+                    display.render_frame(&mut self.pixel_buffer);
                 }
                 
                 self.updated = false;
@@ -424,12 +426,16 @@ impl Gpu {
 
     fn draw_scanline(&mut self, display: &mut dyn Display) {
         let pixel_y = self.ly;
-        let mut buffer: [Color; SCREEN_WIDTH as usize] = [Default::default(); SCREEN_WIDTH as usize];
+        //let mut buffer: [Color; SCREEN_WIDTH as usize] = [Default::default(); SCREEN_WIDTH as usize];
         for pixel_x in 0 .. SCREEN_WIDTH {
+            let idx = (pixel_y as usize * SCREEN_WIDTH as usize * 4) + (pixel_x as usize * 4);
             let color = self.get_color(pixel_x, pixel_y);
-            buffer[pixel_x as usize] = color; 
+            self.pixel_buffer[idx] = color.r;
+            self.pixel_buffer[idx + 1] = color.g;
+            self.pixel_buffer[idx + 2] = color.b;
+            //buffer[pixel_x as usize] = color; 
         }
-        display.update_line_from_buffer(buffer, pixel_y);
+        //display.update_line_from_buffer(buffer, pixel_y);
     }
 
     fn get_tile_at(&self, tilemap: bool, x: u8, y: u8) -> (Tile, u8) {
