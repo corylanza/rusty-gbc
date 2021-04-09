@@ -433,6 +433,7 @@ impl Gpu {
             self.pixel_buffer[idx] = color.r;
             self.pixel_buffer[idx + 1] = color.g;
             self.pixel_buffer[idx + 2] = color.b;
+            self.pixel_buffer[idx + 3] = 0xFF;
             //buffer[pixel_x as usize] = color; 
         }
         //display.update_line_from_buffer(buffer, pixel_y);

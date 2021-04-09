@@ -47,7 +47,7 @@ impl Canvas {
 
 impl Display for Canvas {
     fn render_frame(&mut self, buffer: &mut [u8; PIXEL_BUFFER_SIZE]) {
-        //self.frame_count = if self.frame_count > 6 { 0 } else { self.frame_count + 1 };
+        //self.frame_count = if self.frame_count > 2 { 0 } else { self.frame_count + 1 };
         self.ctx.put_image_data(self.image_data(buffer), 0.0, 0.0).unwrap();
     }
 
