@@ -9,3 +9,6 @@ members = [
 default-members = [
     "gbc_sdl2"
 ]
+
+[profile.release]
+debug = true

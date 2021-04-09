@@ -130,6 +130,7 @@ impl Mmu {
             0xFF49 => self.gpu.get_obp1(),
             0xFF4A => self.gpu.get_wy(),
             0xFF4B => self.gpu.get_wx(),
+            0xFF4D if self.gpu.color_mode => println!("Double speed not implemented"),
             0xFF4F if self.gpu.color_mode => self.gpu.get_vram_bank(),
             // 0xFF50 => boot rom enabled
             0xFF51 if self.gpu.color_mode => 0xFF, // HDMA1 High Source byte (write only),
@@ -197,7 +198,7 @@ impl Mmu {
             0xFF49 => self.gpu.set_obp1(value),
             0xFF4A => self.gpu.set_wy(value),
             0xFF4B => self.gpu.set_wx(value),
-            0xFF4D if self.gpu.color_mode => {},//panic!("Double speed not implemented"),
+            0xFF4D if self.gpu.color_mode => println!("Double speed not implemented"),
             0xFF4F if self.gpu.color_mode => self.gpu.select_vram_bank(value),
             0xFF51 if self.gpu.color_mode => self.hdma.source = u16::from_be_bytes([value, (self.hdma.source & 0xFF00) as u8]), // HDMA1 High Source byte (write only),
             0xFF52 if self.gpu.color_mode => self.hdma.source = u16::from_be_bytes([(self.hdma.source >> 8) as u8, value & 0b11110000]), // HDMA2 Low Source byte (write only) lower 4 bits ignored,
@@ -302,6 +303,9 @@ impl Hdma {
         self.value = value;
         let bytes_count = self.remaining_len();
         let h_blank_mode = value & 0b10000000 > 1;
+        if h_blank_mode {
+            panic!("H-blank HDMA Not supported");
+        }
         //println!("DMA started from {:04X} to {:04X}, {} bytes, H-blank mode {}", self.source, self.destination, bytes_count, h_blank_mode);
     }
 
