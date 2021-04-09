@@ -1,5 +1,5 @@
 use crate::{Color, Display};
-use crate::{SCREEN_HEIGHT, SCREEN_WIDTH, PIXEL_BUFFER_SIZE};
+use crate::{SCREEN_HEIGHT, SCREEN_WIDTH, PIXEL_BUFFER_SIZE, BYTES_PER_PIXEL};
 use super::{V_BLANK_INTERRUPT, STAT_INTERRUPT};
 
 const SPRITE_OBJ_TO_BG_PRIORITY: u8 = 0b10000000; // (0=OBJ Above BG, 1=OBJ Behind BG color 1-3) //(Used for both BG and Window. BG color 0 is always behind OBJ)
@@ -66,7 +66,8 @@ pub struct Gpu {
     color_obj_palettes: [u8; 0x40],
     cycle_count: usize,
     pub interrupts: u8,
-    updated: bool
+    updated: bool,
+    pub frame_complete: bool
 }
 
 type Tile = [[u8; 8]; 8];
@@ -127,7 +128,8 @@ impl Gpu {
             color_obj_palettes: [0; 0x40],
             cycle_count: 0,
             interrupts: 0,
-            updated: true
+            updated: true,
+            frame_complete: false
         }))
     }
 
@@ -202,8 +204,9 @@ impl Gpu {
                 self.ly += 1;
                 self.cycle_count = 0;
             }
-            if self.ly > SCREEN_HEIGHT + 10 {
+            if self.ly >= SCREEN_HEIGHT + 10 {
                 self.ly = 0;
+                self.frame_complete = true;
             }
         }
     }
@@ -428,7 +431,7 @@ impl Gpu {
         let pixel_y = self.ly;
         //let mut buffer: [Color; SCREEN_WIDTH as usize] = [Default::default(); SCREEN_WIDTH as usize];
         for pixel_x in 0 .. SCREEN_WIDTH {
-            let idx = (pixel_y as usize * SCREEN_WIDTH as usize * 4) + (pixel_x as usize * 4);
+            let idx = ((pixel_y as usize * SCREEN_WIDTH as usize) + (pixel_x as usize)) * (BYTES_PER_PIXEL as usize);
             let color = self.get_color(pixel_x, pixel_y);
             self.pixel_buffer[idx] = color.r;
             self.pixel_buffer[idx + 1] = color.g;

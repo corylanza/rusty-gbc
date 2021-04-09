@@ -43,12 +43,13 @@ impl Cpu {
 
     pub fn run_one_frame(&mut self, display: &mut dyn Display) {
         let mut cycle_count: u32  = 0;
-        while cycle_count < 70_224 {
+        while !self.mem.gpu.frame_complete {//cycle_count < 70_224 {
             let cycles = self.step_cycles();
             cycle_count += cycles as u32;
             self.mem.gpu.gpu_step(display, cycles);
             self.mem.mmu_step(cycles);
         }
+        self.mem.gpu.frame_complete = false;
     }
 
     pub fn attatch_debugger(&mut self, debug: Debugger) {
