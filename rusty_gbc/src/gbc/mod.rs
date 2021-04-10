@@ -152,6 +152,10 @@ impl Cpu {
                     println!("halting");
                 }
                 if opcode == 0x10 {
+                    if self.mem.prepare_speed_switch {
+                        self.mem.prepare_speed_switch = false;
+                        self.mem.doublespeed = !self.mem.doublespeed;
+                    }
                     return 4;
                 }
                 self.halted = true; 4 

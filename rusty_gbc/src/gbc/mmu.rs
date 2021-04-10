@@ -44,7 +44,8 @@ pub struct Mmu {
     interupt_switch: u8,
     wram_select: u8,
     pub booting: bool,
-    pub prepare_doublespeed: bool
+    pub prepare_speed_switch: bool,
+    pub doublespeed: bool
 }
 
 impl Mmu {
@@ -75,7 +76,8 @@ impl Mmu {
             interupt_switch: 0,
             wram_select: 0,
             booting: true,
-            prepare_doublespeed: false
+            prepare_speed_switch: false,
+            doublespeed: false
         }
     }
 
@@ -130,7 +132,7 @@ impl Mmu {
             0xFF49 => self.gpu.get_obp1(),
             0xFF4A => self.gpu.get_wy(),
             0xFF4B => self.gpu.get_wx(),
-            0xFF4D if self.gpu.color_mode => { println!("Double speed not implemented"); 0xFF },
+            0xFF4D if self.gpu.color_mode => (0b10000000 & if self.doublespeed { 0xFF } else { 0 }) | (0b00000001 & if self.prepare_speed_switch { 0xFF } else { 0 }),
             0xFF4F if self.gpu.color_mode => self.gpu.get_vram_bank(),
             // 0xFF50 => boot rom enabled
             0xFF51 if self.gpu.color_mode => 0xFF, // HDMA1 High Source byte (write only),
@@ -198,7 +200,7 @@ impl Mmu {
             0xFF49 => self.gpu.set_obp1(value),
             0xFF4A => self.gpu.set_wy(value),
             0xFF4B => self.gpu.set_wx(value),
-            0xFF4D if self.gpu.color_mode => println!("Double speed not implemented"),
+            0xFF4D if self.gpu.color_mode => self.prepare_speed_switch = value & 0b00000001 > 0,
             0xFF4F if self.gpu.color_mode => self.gpu.select_vram_bank(value),
             0xFF51 if self.gpu.color_mode => self.hdma.source = u16::from_be_bytes([value, (self.hdma.source & 0xFF00) as u8]), // HDMA1 High Source byte (write only),
             0xFF52 if self.gpu.color_mode => self.hdma.source = u16::from_be_bytes([(self.hdma.source >> 8) as u8, value & 0b11110000]), // HDMA2 Low Source byte (write only) lower 4 bits ignored,
