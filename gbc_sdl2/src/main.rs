@@ -51,7 +51,7 @@ fn main() -> Result<(), String> {
         //     .present_vsync()
         //     .accelerated()
         //     .build()
-        //     .unwrap(); 
+        //     .unwrap();
 
         let mut file = File::open(&args[1]).unwrap();
         let mut buffer = Vec::<u8>::new();

@@ -430,15 +430,18 @@ impl Gpu {
     fn draw_scanline(&mut self, display: &mut dyn Display) {
         let pixel_y = self.ly;
         //let mut buffer: [Color; SCREEN_WIDTH as usize] = [Default::default(); SCREEN_WIDTH as usize];
-        for pixel_x in 0 .. SCREEN_WIDTH {
-            let idx = ((pixel_y as usize * SCREEN_WIDTH as usize) + (pixel_x as usize)) * (BYTES_PER_PIXEL as usize);
-            let color = self.get_color(pixel_x, pixel_y);
-            self.pixel_buffer[idx] = color.r;
-            self.pixel_buffer[idx + 1] = color.g;
-            self.pixel_buffer[idx + 2] = color.b;
-            self.pixel_buffer[idx + 3] = 0xFF;
-            //buffer[pixel_x as usize] = color; 
+        if self.updated {
+            for pixel_x in 0 .. SCREEN_WIDTH {
+                let idx = ((pixel_y as usize * SCREEN_WIDTH as usize) + (pixel_x as usize)) * (BYTES_PER_PIXEL as usize);
+                let color = self.get_color(pixel_x, pixel_y);
+                self.pixel_buffer[idx] = color.r;
+                self.pixel_buffer[idx + 1] = color.g;
+                self.pixel_buffer[idx + 2] = color.b;
+                self.pixel_buffer[idx + 3] = 0xFF;
+                //buffer[pixel_x as usize] = color; 
+            }
         }
+
         //display.update_line_from_buffer(buffer, pixel_y);
     }
 

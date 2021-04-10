@@ -43,30 +43,18 @@ impl Display for SdlDisplay<'_> {
 
 
 
-        self.texture.with_lock(None, |sdl_buffer: &mut [u8], pitch: usize| {
-            for idx in 0 .. PIXEL_BUFFER_SIZE {
-                if idx + 3 < sdl_buffer.len() && idx + 3 < buffer.len() {
-                    sdl_buffer[idx] = buffer[idx];
-                    sdl_buffer[idx + 1] = buffer[idx + 1];
-                    sdl_buffer[idx + 2] = buffer[idx + 2];
-                    sdl_buffer[idx + 3] = 0xFF;
-                }
-            }
+        self.texture.with_lock(None, |sdl_buffer: &mut [u8], _pitch: usize| {
+            sdl_buffer.copy_from_slice(buffer);
+            // for idx in 0 .. PIXEL_BUFFER_SIZE {
+            //     if idx + 3 < sdl_buffer.len() && idx + 3 < buffer.len() {
+            //         sdl_buffer[idx] = buffer[idx];
+            //         sdl_buffer[idx + 1] = buffer[idx + 1];
+            //         sdl_buffer[idx + 2] = buffer[idx + 2];
+            //         sdl_buffer[idx + 3] = 0xFF;
+            //     }
+            // }
         }).unwrap();
         self.canvas.copy(&self.texture, None, None).unwrap();
         self.canvas.present();
-    }
-
-    fn update_line_from_buffer(&mut self, buffer: [Color; SCREEN_WIDTH as usize], pixel_y: u8) {
-        self.texture.with_lock(None, |sdl_buffer: &mut [u8], pitch: usize| {
-            for pixel_x in 0 .. SCREEN_WIDTH {
-                let buf_idx = (pixel_y as usize * pitch) + (pixel_x as usize * BYTES_PER_PIXEL as usize);
-                let color = buffer[pixel_x as usize];
-                sdl_buffer[buf_idx] = color.r;
-                sdl_buffer[buf_idx + 1] = color.g;
-                sdl_buffer[buf_idx + 2] = color.b;
-                sdl_buffer[buf_idx + 3] = 0xFF;
-            }
-        }).unwrap();
     }
 }

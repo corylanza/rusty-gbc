@@ -25,5 +25,4 @@ impl Color {
 
 pub trait Display {
     fn render_frame(&mut self, buffer: &mut [u8; PIXEL_BUFFER_SIZE as usize]);
-    fn update_line_from_buffer(&mut self, buffer: [Color; SCREEN_WIDTH as usize], line: u8);
 }

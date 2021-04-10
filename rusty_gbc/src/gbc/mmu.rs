@@ -130,7 +130,7 @@ impl Mmu {
             0xFF49 => self.gpu.get_obp1(),
             0xFF4A => self.gpu.get_wy(),
             0xFF4B => self.gpu.get_wx(),
-            0xFF4D if self.gpu.color_mode => println!("Double speed not implemented"),
+            0xFF4D if self.gpu.color_mode => { println!("Double speed not implemented"); 0xFF },
             0xFF4F if self.gpu.color_mode => self.gpu.get_vram_bank(),
             // 0xFF50 => boot rom enabled
             0xFF51 if self.gpu.color_mode => 0xFF, // HDMA1 High Source byte (write only),

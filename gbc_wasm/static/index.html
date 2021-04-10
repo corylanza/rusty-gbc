@@ -160,13 +160,30 @@
                 document.dispatchEvent(new KeyboardEvent('keydown', {'key' : key}));
             }
             var timer = new Date();
+            var frameCount = 0;
 
             function create_frame_image_data(data) {
-                var timer_new = new Date();
-                var fps = Math.round(1000 / (timer_new - timer));
-                document.getElementById("fps").innerText = fps;
-                timer = timer_new;
+                frameCount += 1;
+                if((new Date() - timer) > 1000) {
+                    var timer_new = new Date();
+                    var fps = Math.round(frameCount / (1000 / (timer_new - timer)));
+                    frameCount = 0;
+                    document.getElementById("fps").innerText = fps;
+                    timer = timer_new;
+                }
                 return new ImageData(Uint8ClampedArray.from(data), 160, 144);
+            }
+
+            function update_frame_image_data(data) {
+                frameCount += 1;
+                if((new Date() - timer) > 1000) {
+                    var timer_new = new Date();
+                    var fps = Math.round(frameCount / (1000 / (timer_new - timer)));
+                    frameCount = 0;
+                    document.getElementById("fps").innerText = fps;
+                    timer = timer_new;
+                }
+                document.getElementById('canvas').getContext('2d').putImageData(new ImageData(Uint8ClampedArray.from(data), 160, 144), 0, 0);
             }
 
             var fileReader = new FileReader();
