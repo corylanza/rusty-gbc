@@ -9,6 +9,13 @@
         <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css"
             integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
         <style>
+            body {
+                -webkit-user-select: none; /* Safari */        
+                -moz-user-select: none; /* Firefox */
+                -ms-user-select: none; /* IE10+/Edge */
+                user-select: none; /* Standard */
+            }
+
             .purple {
                 background-color: #6935bd;
             }
@@ -58,7 +65,7 @@
                     <div class="row no-gutters purple d-md-none pt-3">
                         <div class="col-2 offset-1 gray">
                             <div
-                                class="btn btn-secondary mt-3 float-right"
+                                class="btn btn-secondary mt-5 float-right w-100"
                                 ontouchstart="raiseKeyDownEvent('ArrowLeft')" 
                                 ontouchend="raiseKeyUpEvent('ArrowLeft')"
                             >&#9668;</div>
@@ -66,12 +73,12 @@
                         <div class="col-2 gray text-center w-100">
                             <div class="btn-group-vertical pb-4 w-100">
                                 <div
-                                    class="btn btn-secondary mb-2" 
+                                    class="btn btn-secondary mt-2" 
                                     ontouchstart="raiseKeyDownEvent('ArrowUp')" 
                                     ontouchend="raiseKeyUpEvent('ArrowUp')"
                                 >&#9650;</div>
                                 <div
-                                    class="btn btn-secondary"
+                                    class="btn btn-secondary mt-5"
                                     ontouchstart="raiseKeyDownEvent('ArrowDown')" 
                                     ontouchend="raiseKeyUpEvent('ArrowDown')"
                                 >&#9660;</div>
@@ -79,21 +86,21 @@
                         </div>
                         <div class="col-2 gray">
                             <div 
-                                class="btn btn-secondary mt-3"
+                                class="btn btn-secondary mt-5 w-100"
                                 ontouchstart="raiseKeyDownEvent('ArrowRight')" 
                                 ontouchend="raiseKeyUpEvent('ArrowRight')"
                             >&#9658;</div>
                         </div>
                         <div class="col-1 offset-1">
                             <div
-                                class="btn btn-secondary circle-btn mt-3"
+                                class="btn btn-secondary circle-btn mt-5"
                                 ontouchstart="raiseKeyDownEvent('s')" 
                                 ontouchend="raiseKeyUpEvent('s')"
                             >A</div>
                         </div>
                         <div class="col-1 offset-1">
                             <div
-                                class="btn btn-secondary circle-btn mt-3"
+                                class="btn btn-secondary circle-btn mt-5"
                                 ontouchstart="raiseKeyDownEvent('a')" 
                                 ontouchend="raiseKeyUpEvent('a')"
                             >B</div>
@@ -115,7 +122,7 @@
                     </div>
                 </div>
                 <div class="col-12 col-lg-4 pt-4 pt-lg-0">
-                    <div class="card bg-color-primary mb-4">
+                    <div class="card bg-color-primary mb-4 d-none d-md-flex">
                         <div class="card-body">
                             <h5 class="card-title">Info</h5>
                             <table class="table table-dark">
@@ -132,13 +139,13 @@
                             </table>
                         </div>
                     </div>
-                    <div class="card bg-color-primary mb-4">
+                    <div class="card bg-color-primary mb-4 d-none d-md-flex">
                         <div class="card-body">
                             <h5 class="card-title">About</h5>
                             <p class="card-text">In progress</p>
                         </div>
                     </div>
-                    <div class="card bg-color-primary mb-4">
+                    <div class="card bg-color-primary mb-4" id="debug-container">
                         <div class="card-body">
                             <h5 class="card-title">Debugger</h5>
                             <label class="btn btn-primary">
@@ -189,6 +196,7 @@
             var fileReader = new FileReader();
             fileReader.onloadend = e => Rust.gbc_wasm
                 .then(reader => {
+                    document.getElementById('debug-container').classList.add('d-none');
                     window.reader.run_rom(fileReader);
                 });
 
