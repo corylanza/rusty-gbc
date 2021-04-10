@@ -9,7 +9,7 @@ pub struct MBC5 {
 }
 
 impl MBC5 {
-    pub fn load_rom(bytes: &Vec<u8>, rom_bank_count: u16, ram_bank_count: u8, ram_bank_size: u16) -> MBC5 {
+    pub fn load_rom(bytes: &Vec<u8>, save_bytes: &Vec<u8>, rom_bank_count: u16, ram_bank_count: u8, ram_bank_size: u16) -> MBC5 {
         println!("MBC5");
         let rom_bank_count = match rom_bank_count {
             0x1E0 ..= 0xFFFF => panic!("MBC5 does not support {} rom banks", rom_bank_count),
@@ -26,6 +26,10 @@ impl MBC5 {
             rom_bank_count, mbc.rom_banks.len() / 0x400, ram_bank_count, ram_bank_size, (mbc.ram_banks.len() * ram_bank_size as usize) / 0x400);
         for (idx, byte) in bytes.iter().enumerate() {
             mbc.rom_banks[idx / 0x4000][idx % 0x4000] = *byte;
+        }
+
+        for (idx, byte) in save_bytes.iter().enumerate() {
+            mbc.ram_banks[idx / ram_bank_size as usize][idx % ram_bank_size as usize] = *byte;
         }
         mbc
     }

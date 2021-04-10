@@ -34,7 +34,8 @@ fn run_rom(file_reader: FileReader) {
                 
                 let color_mode = bytes[0x143] & 0x80 == 0x80 || bytes[0x143] & 0xC0 == 0xC0;
                 let gpu = Gpu::new(color_mode).unwrap();
-                let gbc = Rc::new(RefCell::new(Cpu::new(bytes, gpu)));
+                let mut save_buffer = Vec::<u8>::new();
+                let gbc = Rc::new(RefCell::new(Cpu::new(bytes, save_buffer, gpu)));
 
                 stdweb::web::document().add_event_listener({
                     let gbc = gbc.clone();

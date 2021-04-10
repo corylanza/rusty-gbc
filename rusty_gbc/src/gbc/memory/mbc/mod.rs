@@ -19,7 +19,7 @@ pub trait MemoryBank {
 }
 
 impl dyn MemoryBank {
-    pub fn new(rom_bytes: Vec<u8>) -> Box<dyn MemoryBank> {
+    pub fn new(rom_bytes: Vec<u8>, save_bytes: Vec<u8>) -> Box<dyn MemoryBank> {
         let mbc_type = rom_bytes[MEMORY_BANK_TYPE_ADDRESS as usize];
         let rom_size = rom_bytes[ROM_SIZE_ADDRESS as usize];
         let rom_bank_count: u16 = match rom_size {
@@ -38,8 +38,8 @@ impl dyn MemoryBank {
         };
         match mbc_type {
             0 => NoMBC::load_rom(&rom_bytes),
-            1 ..= 3 => Box::new(MBC1::load_rom(&rom_bytes, rom_bank_count, ram_bank_count, ram_bank_size)),
-            0x19 ..= 0x1E => Box::new(MBC5::load_rom(&rom_bytes, rom_bank_count, ram_bank_count, ram_bank_size)),
+            1 ..= 3 => Box::new(MBC1::load_rom(&rom_bytes, &save_bytes, rom_bank_count, ram_bank_count, ram_bank_size)),
+            0x19 ..= 0x1E => Box::new(MBC5::load_rom(&rom_bytes, &save_bytes, rom_bank_count, ram_bank_count, ram_bank_size)),
             _ => panic!("not implemented {}", mbc_type)
         }
     }

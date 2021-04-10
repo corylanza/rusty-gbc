@@ -49,12 +49,12 @@ pub struct Mmu {
 }
 
 impl Mmu {
-    pub fn new(rom_bytes: Vec<u8>, gpu: Box<Gpu>) -> Mmu {
+    pub fn new(rom_bytes: Vec<u8>, save_bytes: Vec<u8>, gpu: Box<Gpu>) -> Mmu {
         if gpu.color_mode {
             println!("Color");
         }
         
-        let mbc = MemoryBank::new(rom_bytes);
+        let mbc = MemoryBank::new(rom_bytes, save_bytes);
         let mut wram = Vec::new();
         for _ in 0 .. if gpu.color_mode { 8 } else { 2 } {   
             wram.push(Ram::new(0x2000));

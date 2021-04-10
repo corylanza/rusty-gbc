@@ -2,7 +2,7 @@ extern crate rusty_gbc;
 
 use rusty_gbc::gbc::Cpu;
 use rusty_gbc::debugger::Debugger;
-use rusty_gbc::{SCREEN_HEIGHT, SCREEN_WIDTH, PIXEL_BUFFER_SIZE};
+use rusty_gbc::{SCREEN_HEIGHT, SCREEN_WIDTH};
 use rusty_gbc::gbc::gpu::Gpu;
 use std::env;
 
@@ -53,13 +53,24 @@ fn main() -> Result<(), String> {
         //     .build()
         //     .unwrap();
 
-        let mut file = File::open(&args[1]).unwrap();
-        let mut buffer = Vec::<u8>::new();
-        file.read_to_end(&mut buffer).unwrap();
+        let mut rom_file = File::open(&args[1]).unwrap();
+        let mut rom_buffer = Vec::<u8>::new();
+        rom_file.read_to_end(&mut rom_buffer).unwrap();
+
+        let save_name: Vec<String> = args[1].as_str().split(".").map(|s| s.to_string()).collect();//[0];
+        println!("{}", save_name[1]);
+        let mut save_buffer = Vec::<u8>::new();
+        match File::open(format!(".{}.sav", save_name[1])) {
+            Ok(mut save_file) => {
+                println!("Save found");
+                save_file.read_to_end(&mut save_buffer).unwrap();
+            },
+            _ => {}
+        };
         
-        let color_mode = buffer[0x143] & 0x80 == 0x80 || buffer[0x143] & 0xC0 == 0xC0;
+        let color_mode = rom_buffer[0x143] & 0x80 == 0x80 || rom_buffer[0x143] & 0xC0 == 0xC0;
         let gpu = Gpu::new(color_mode).unwrap();
-        let mut gbc = Cpu::new(buffer, gpu);
+        let mut gbc = Cpu::new(rom_buffer, save_buffer, gpu);
 
         if args.len() > 2 {
             let debugger = Debugger::new(&args[2]);
