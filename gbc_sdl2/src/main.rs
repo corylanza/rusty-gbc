@@ -40,19 +40,6 @@ fn main() -> Result<(), String> {
         let tc = canvas.texture_creator();
         let mut display = SdlDisplay::new(canvas, &tc);
 
-        // let tiles_window = video_subsystem.window("Tileset", 16 * 8 * 2, (384 / 16) * 8 * 2)
-        //     .position_centered()
-        //     .opengl()
-        //     .resizable()
-        //     .build()
-        //     .unwrap();
-        // let mut tile_canvas = tiles_window.into_canvas()
-        //     .target_texture()
-        //     .present_vsync()
-        //     .accelerated()
-        //     .build()
-        //     .unwrap();
-
         let mut rom_file = File::open(&args[1]).unwrap();
         let mut rom_buffer = Vec::<u8>::new();
         rom_file.read_to_end(&mut rom_buffer).unwrap();
