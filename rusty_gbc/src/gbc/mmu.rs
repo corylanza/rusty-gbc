@@ -81,7 +81,7 @@ impl Mmu {
         }
     }
 
-    pub fn mmu_step(&mut self, cycles: u8) {
+    pub fn mmu_step(&mut self, cycles: u8) -> u32 {
         let int = self.read(INTERUPT_REQUEST) | self.gpu.interrupts | self.input.interrupt | self.timer.interrupt;
         self.write(INTERUPT_REQUEST, int);
         self.gpu.interrupts = 0;
@@ -93,7 +93,7 @@ impl Mmu {
             Some(ref dma) => self.dma_step(*dma, cycles),
             None => {}
         };
-        self.hdma_step();
+        return self.hdma_step()
     }
 
     #[allow(overlapping_patterns)]
@@ -255,15 +255,19 @@ impl Mmu {
         self.dma = Some(dma);
     }
 
-    fn hdma_step(&mut self) {
+    fn hdma_step(&mut self) -> u32 {
         if self.gpu.color_mode && self.hdma.active() {
             //println!("transferred");
-            for i in 0 .. self.hdma.remaining_len() {
+            let transfer_len = self.hdma.remaining_len();
+            for i in 0 .. transfer_len {
                 let val = self.read(self.hdma.source + i);
                 self.write(self.hdma.destination + i, val);
             }
             self.hdma.value = 0xFF;
+            // Takes 32 cycles per 16 bytes in regular, and 64 in double
+            return 4 + (transfer_len as u32 * if self.doublespeed { 64 } else { 32 });
         }
+        0
     }
 }
 

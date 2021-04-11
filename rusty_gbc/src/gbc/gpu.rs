@@ -133,7 +133,7 @@ impl Gpu {
         }))
     }
 
-    pub fn gpu_step(&mut self, display: &mut dyn Display, cycles: u8) {
+    pub fn gpu_step(&mut self, display: &mut dyn Display, cycles: u32) {
         if !self.lcd_enable {
             return;
         }

@@ -44,14 +44,17 @@ impl Cpu {
     pub fn run_one_frame(&mut self, display: &mut dyn Display) {
         //let mut cycle_count: u32  = 0;
         while !self.mem.gpu.frame_complete {//cycle_count < 70_224 {
-            let cycles = if self.mem.doublespeed { 
+            let mut cpu_cycles = if self.mem.doublespeed { 
                 self.step_cycles() + self.step_cycles()
             } else {
                 self.step_cycles()
             };
             //cycle_count += cycles as u32;
-            self.mem.gpu.gpu_step(display, if self.mem.doublespeed { cycles / 2 } else { cycles });
-            self.mem.mmu_step(cycles);
+            let mem_cycles = self.mem.mmu_step(cpu_cycles);
+            let total_cycles = cpu_cycles as u32 + mem_cycles;
+            let gpu_cycles = if self.mem.doublespeed { total_cycles / 2 } else { total_cycles };
+            
+            self.mem.gpu.gpu_step(display, gpu_cycles);
         }
         self.mem.gpu.frame_complete = false;
     }
